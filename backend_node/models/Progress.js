@@ -1,0 +1,29 @@
+const mongoose = require('mongoose');
+
+const mistakeSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    lesson: { type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' },
+    error_type: { type: String, required: true }, // e.g., 'mad', 'ghunna'
+    feedback: { type: String },
+    audio_url: { type: String },
+    occurrence_count: { type: Number, default: 1 }
+}, { timestamps: true });
+
+const progressSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    lesson: { type: mongoose.Schema.Types.ObjectId, ref: 'Lesson', required: true },
+    status: {
+        type: String,
+        enum: ['not-started', 'in-progress', 'completed'],
+        default: 'not-started'
+    },
+    score: { type: Number, default: 0 },
+    last_accessed: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+progressSchema.index({ user: 1, lesson: 1 }, { unique: true });
+
+const Progress = mongoose.model('Progress', progressSchema);
+const Mistake = mongoose.model('Mistake', mistakeSchema);
+
+module.exports = { Progress, Mistake };

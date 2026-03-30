@@ -1,0 +1,31 @@
+flowchart TB
+    AUDIO["Audio Input 16kHz WAV"] --> ENCODER["Wav2Vec2BERT Encoder"]
+    
+    ENCODER --> CTC["Multi-Level CTC Decoder"]
+    
+    CTC --> HEAD1["Head 1: Phonemes"]
+    CTC --> HEAD2["Head 2: Hams/Jahr"]
+    CTC --> HEAD3["Head 3: Shidda/Rakhawa"]
+    CTC --> HEAD4["Head 4: Tafkheem/Tarqeeq"]
+    CTC --> HEAD5["Head 5: Itbaq"]
+    CTC --> HEAD6["Head 6: Safeer"]
+    CTC --> HEAD7["Head 7: Qalqala"]
+    CTC --> HEAD8["Head 8: Tikraar"]
+    CTC --> HEAD9["Head 9: Tafashie"]
+    CTC --> HEAD10["Head 10: Istitala"]
+    CTC --> HEAD11["Head 11: Ghunna"]
+
+    style AUDIO fill:#044D29,stroke:#D4AF37,stroke-width:2px,color:#fff
+    style ENCODER fill:#1a1a2e,stroke:#D4AF37,stroke-width:2px,color:#fff
+    style CTC fill:#7C3AED,stroke:#D4AF37,stroke-width:2px,color:#fff
+    style HEAD1 fill:#DC2626,stroke:#D4AF37,color:#fff
+    style HEAD2 fill:#0369A1,stroke:#D4AF37,color:#fff
+    style HEAD3 fill:#0369A1,stroke:#D4AF37,color:#fff
+    style HEAD4 fill:#0369A1,stroke:#D4AF37,color:#fff
+    style HEAD5 fill:#0369A1,stroke:#D4AF37,color:#fff
+    style HEAD6 fill:#0369A1,stroke:#D4AF37,color:#fff
+    style HEAD7 fill:#0369A1,stroke:#D4AF37,color:#fff
+    style HEAD8 fill:#0369A1,stroke:#D4AF37,color:#fff
+    style HEAD9 fill:#0369A1,stroke:#D4AF37,color:#fff
+    style HEAD10 fill:#0369A1,stroke:#D4AF37,color:#fff
+    style HEAD11 fill:#0369A1,stroke:#D4AF37,color:#fff

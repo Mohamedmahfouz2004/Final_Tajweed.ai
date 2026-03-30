@@ -1,0 +1,23 @@
+flowchart TD
+    A["User Audio Recording - WAV 16kHz"] --> B["Surah/Ayah/Word Selection"]
+    
+    B --> C["quran_phonetizer"]
+    B --> D["Muaalem Model - Wav2Vec2BERT"]
+    
+    C -->|Phonetic Reference| E["Diff Analysis"]
+    D -->|Multi-level Prediction| E
+    
+    E -->|Compare Reference vs Prediction| F["Sifat Explanation"]
+    
+    F -->|Human-readable Feedback| G["JSON Response"]
+    
+    G --> H["Frontend Display"]
+
+    style A fill:#065F46,stroke:#D4AF37,color:#fff
+    style B fill:#065F46,stroke:#D4AF37,color:#fff
+    style C fill:#7C3AED,stroke:#D4AF37,color:#fff
+    style D fill:#7C3AED,stroke:#D4AF37,color:#fff
+    style E fill:#DC2626,stroke:#D4AF37,color:#fff
+    style F fill:#0369A1,stroke:#D4AF37,color:#fff
+    style G fill:#0369A1,stroke:#D4AF37,color:#fff
+    style H fill:#047857,stroke:#D4AF37,color:#fff

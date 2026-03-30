@@ -1,0 +1,44 @@
+flowchart TB
+    subgraph CLIENT["CLIENT - React Frontend"]
+        direction LR
+        HP["Home Page"]
+        PV["Practice View"]
+        LS["Lessons"]
+        VC["Voice Commander"]
+    end
+
+    subgraph BACKEND["BACKEND - FastAPI Server"]
+        E1["/analyze endpoint"]
+        E2["/voice/command endpoint"]
+        E3["/ws/transcribe WebSocket"]
+    end
+
+    subgraph AIMODELS["AI Models Layer"]
+        M1["Muaalem CTC Model"]
+        M2["WhisperX Transcription"]
+        M3["Edge TTS Voice"]
+    end
+
+    subgraph EXTERNAL["EXTERNAL RESOURCES"]
+        HF["HuggingFace Model Hub"]
+        QA["Quran API"]
+        QT["quran-transcript Library"]
+    end
+
+    CLIENT -->|HTTP POST Audio| E1
+    CLIENT -->|HTTP POST Command| E2
+    CLIENT -->|WebSocket Audio| E3
+    
+    E1 --> M1
+    E2 --> M1
+    E2 --> M3
+    E3 --> M2
+    
+    M1 -.-> HF
+    E1 -.-> QA
+    M1 -.-> QT
+
+    style CLIENT fill:#044D29,stroke:#D4AF37,stroke-width:2px,color:#fff
+    style BACKEND fill:#1a1a2e,stroke:#D4AF37,stroke-width:2px,color:#fff
+    style AIMODELS fill:#533483,stroke:#D4AF37,stroke-width:2px,color:#fff
+    style EXTERNAL fill:#16213e,stroke:#D4AF37,stroke-width:2px,color:#fff
