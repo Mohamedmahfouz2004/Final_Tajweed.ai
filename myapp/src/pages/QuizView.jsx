@@ -7,7 +7,7 @@ import useAppStore from '../store/useAppStore';
 const QuizView = () => {
     const { lessonId } = useParams();
     const navigate = useNavigate();
-    const { lessons, fetchLessons } = useAppStore();
+    const { lessons, fetchLessons, updateUserProgress } = useAppStore();
 
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [score, setScore] = useState(0);
@@ -36,6 +36,22 @@ const QuizView = () => {
             setSelectedAnswer(null);
             setIsAnswerChecked(false);
         } else {
+            const finalScore = score;
+            const percentage = Math.round((finalScore / questions.length) * 100);
+            const status = percentage >= 70 ? 'completed' : 'in-progress';
+
+            const { showToast, updateUserProgress } = useAppStore.getState();
+            showToast("جاري حفظ النتيجة...");
+
+            // Save progress to database
+            updateUserProgress(lessonId, status, percentage)
+                .then(() => {
+                    showToast(status === 'completed' ? "✅ تم بنجاح! مبروك إكمال الدرس" : "تم حفظ تقدمك");
+                })
+                .catch(err => {
+                    console.error("Save error:", err);
+                });
+
             setShowScore(true);
         }
     };

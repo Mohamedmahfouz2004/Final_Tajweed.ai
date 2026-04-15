@@ -15,7 +15,19 @@ const useAppStore = create((set, get) => ({
     logout: () => {
         localStorage.removeItem('tajweed_token');
         localStorage.removeItem('tajweed_user');
-        set({ isLoggedIn: false, currentUser: null });
+        set({
+            isLoggedIn: false,
+            currentUser: null,
+            userProgress: {
+                badgesEarned: 0,
+                weeklyStats: [],
+                mistakeStats: [],
+                versesPracticed: 0,
+                completedLessons: 0,
+                averageAccuracy: 0,
+                completedLessonsList: []
+            }
+        });
     },
 
 
@@ -50,15 +62,19 @@ const useAppStore = create((set, get) => ({
         averageAccuracy: 0,
         badgesEarned: 0,
         weeklyStats: [],
-        mistakeStats: []
+        mistakeStats: [],
+        completedLessons: 0,
+        completedLessonsList: []
     },
 
     // --- Data Actions ---
     fetchLessons: async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/lessons');
+            const res = await fetch('http://127.0.0.1:5000/api/lessons');
             const data = await res.json();
-            set({ lessons: data });
+            if (Array.isArray(data)) {
+                set({ lessons: data });
+            }
         } catch (err) {
             console.error('Failed to fetch lessons:', err);
         }
@@ -69,15 +85,22 @@ const useAppStore = create((set, get) => ({
         if (!token) return;
 
         try {
-            const res = await fetch('http://localhost:5000/api/progress/summary', {
-                headers: { 'x-auth-token': token }
+            console.log('[STORE] Fetching progress summary...');
+            const res = await fetch('http://127.0.0.1:5000/api/progress/summary', {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
+            console.log('[STORE] Progress data received:', data);
             set({
                 userProgress: {
                     ...get().userProgress,
-                    weeklyStats: data.weekly,
-                    mistakeStats: data.mistakes
+                    totalMistakes: data.mistakes?.reduce((acc, curr) => acc + (curr.count || 0), 0) || 0,
+                    weeklyStats: data.weekly || [],
+                    mistakeStats: data.mistakes || [],
+                    versesPracticed: data.versesPracticed || 0,
+                    completedLessons: data.completedLessons || 0,
+                    averageAccuracy: data.averageAccuracy || 0,
+                    completedLessonsList: data.completedLessonIds || []
                 }
             });
         } catch (err) {
@@ -85,11 +108,61 @@ const useAppStore = create((set, get) => ({
         }
     },
 
+    updateUserProgress: async (lessonId, status, score) => {
+        const token = localStorage.getItem('tajweed_token');
+        if (!token) return;
+
+        try {
+            console.log('[STORE] Updating progress for lesson:', lessonId, { status, score });
+            const res = await fetch('http://127.0.0.1:5000/api/progress/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ lesson_id: lessonId, status, score })
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                console.log('[STORE] Update success:', result);
+                get().fetchUserProgress(); // Refresh stats
+                return result;
+            } else {
+                const errData = await res.json();
+                console.error('[STORE] Update failed. Error Details:', errData);
+                get().showToast(`❌ حدث خطأ: ${errData.msg || 'فشل الحفظ'}`);
+                throw new Error(errData.msg || 'Update failed');
+            }
+        } catch (err) {
+            console.error('Failed to update progress:', err);
+            throw err;
+        }
+    },
+
+    logUserMistake: async (lessonId, errorType, audioUrl, feedback) => {
+        const token = localStorage.getItem('tajweed_token');
+        if (!token) return;
+
+        try {
+            await fetch('http://127.0.0.1:5000/api/progress/log-mistake', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ lesson_id: lessonId, error_type: errorType, audio_url: audioUrl, feedback })
+            });
+        } catch (err) {
+            console.error('Failed to log mistake:', err);
+        }
+    },
+
     // --- Admin Actions ---
     addLesson: async (lessonData) => {
         const token = localStorage.getItem('tajweed_token');
         try {
-            const res = await fetch('http://localhost:5000/api/admin/lessons', {
+            const res = await fetch('http://127.0.0.1:5000/api/admin/lessons', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -114,7 +187,7 @@ const useAppStore = create((set, get) => ({
     updateLesson: async (id, lessonData) => {
         const token = localStorage.getItem('tajweed_token');
         try {
-            const res = await fetch(`http://localhost:5000/api/admin/lessons/${id}`, {
+            const res = await fetch(`http://127.0.0.1:5000/api/admin/lessons/${id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -141,7 +214,7 @@ const useAppStore = create((set, get) => ({
     deleteLesson: async (id) => {
         const token = localStorage.getItem('tajweed_token');
         try {
-            const res = await fetch(`http://localhost:5000/api/admin/lessons/${id}`, {
+            const res = await fetch(`http://127.0.0.1:5000/api/admin/lessons/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -162,7 +235,7 @@ const useAppStore = create((set, get) => ({
     addQuiz: async (lessonId, quizData) => {
         const token = localStorage.getItem('tajweed_token');
         try {
-            const res = await fetch('http://localhost:5000/api/admin/quizzes', {
+            const res = await fetch('http://127.0.0.1:5000/api/admin/quizzes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ lesson_id: lessonId, ...quizData })
@@ -181,7 +254,7 @@ const useAppStore = create((set, get) => ({
     deleteQuiz: async (quizId) => {
         const token = localStorage.getItem('tajweed_token');
         try {
-            const res = await fetch(`http://localhost:5000/api/admin/quizzes/${quizId}`, {
+            const res = await fetch(`http://127.0.0.1:5000/api/admin/quizzes/${quizId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -203,7 +276,7 @@ const useAppStore = create((set, get) => ({
     fetchAdminStats: async () => {
         const token = localStorage.getItem('tajweed_token');
         try {
-            const res = await fetch('http://localhost:5000/api/admin/stats', {
+            const res = await fetch('http://127.0.0.1:5000/api/admin/stats', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
@@ -218,7 +291,7 @@ const useAppStore = create((set, get) => ({
     fetchAdminUsers: async () => {
         const token = localStorage.getItem('tajweed_token');
         try {
-            const res = await fetch('http://localhost:5000/api/admin/users', {
+            const res = await fetch('http://127.0.0.1:5000/api/admin/users', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
@@ -233,7 +306,7 @@ const useAppStore = create((set, get) => ({
     updateUserRole: async (userId, role) => {
         const token = localStorage.getItem('tajweed_token');
         try {
-            const res = await fetch(`http://localhost:5000/api/admin/users/${userId}/role`, {
+            const res = await fetch(`http://127.0.0.1:5000/api/admin/users/${userId}/role`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ role })
@@ -255,7 +328,7 @@ const useAppStore = create((set, get) => ({
     deleteUser: async (userId) => {
         const token = localStorage.getItem('tajweed_token');
         try {
-            const res = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+            const res = await fetch(`http://127.0.0.1:5000/api/admin/users/${userId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

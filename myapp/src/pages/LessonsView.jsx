@@ -16,11 +16,12 @@ export const lessonsData = [
 
 const LessonsView = () => {
     const navigate = useNavigate();
-    const { isLoggedIn, openAuthModal, lessons, fetchLessons } = useAppStore();
+    const { isLoggedIn, openAuthModal, lessons, fetchLessons, userProgress, fetchUserProgress } = useAppStore();
 
     React.useEffect(() => {
         fetchLessons();
-    }, [fetchLessons]);
+        if (isLoggedIn) fetchUserProgress();
+    }, [fetchLessons, isLoggedIn, fetchUserProgress]);
 
     return (
         <motion.div variants={staggerContainer} initial="initial" animate="animate">
@@ -50,18 +51,25 @@ const LessonsView = () => {
             </motion.div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
                 {lessons.length > 0 ? (
-                    lessons.map((lesson) => (
-                        <motion.div key={lesson._id} variants={fadeInUp}>
-                            <LessonCard lesson={lesson} onSelect={() => {
-                                const { isLoggedIn, openAuthModal } = useAppStore.getState();
-                                if (!isLoggedIn) {
-                                    openAuthModal();
-                                } else {
-                                    navigate(`/lessons/${lesson._id}`);
-                                }
-                            }} />
-                        </motion.div>
-                    ))
+                    lessons.map((lesson) => {
+                        const isCompleted = userProgress?.completedLessonsList?.includes(lesson._id.toString());
+                        return (
+                            <motion.div key={lesson._id} variants={fadeInUp}>
+                                <LessonCard
+                                    lesson={lesson}
+                                    isCompleted={isCompleted}
+                                    onSelect={() => {
+                                        const { isLoggedIn, openAuthModal } = useAppStore.getState();
+                                        if (!isLoggedIn) {
+                                            openAuthModal();
+                                        } else {
+                                            navigate(`/lessons/${lesson._id}`);
+                                        }
+                                    }}
+                                />
+                            </motion.div>
+                        );
+                    })
                 ) : (
                     <div className="col-span-full text-center py-20 bg-white/50 rounded-2xl border-2 border-dashed border-gray-200">
                         <p className="text-gray-500 font-amiri text-xl">جاري تحميل الدروس أو لا توجد دروس حالياً...</p>
