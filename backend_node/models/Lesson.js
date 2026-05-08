@@ -13,6 +13,7 @@ const lessonSchema = new mongoose.Schema({
     video_url: { type: String },
     content_type: { type: String, default: 'video' },
     sequence_order: { type: Number, required: true },
+    tajweed_rule: { type: String, default: '' },   // Links to error_type from AI model
     quizzes: [quizSchema]
 }, { timestamps: true });
 

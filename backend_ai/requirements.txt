@@ -1,0 +1,11 @@
+flask>=3.0
+flask-socketio>=5.3
+flask-cors>=4.0
+eventlet>=0.35
+python-Levenshtein>=0.21
+rapidfuzz>=3.0
+python-dotenv>=1.0
+onnxruntime>=1.17
+librosa>=0.10
+soundfile>=0.12
+numpy>=1.24

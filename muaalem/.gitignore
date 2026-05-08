@@ -1,0 +1,27 @@
+# build source
+**/*.egg-info/
+
+# pypdl logs
+**pypdl.log
+
+# pycache
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# environments
+.venv/
+.venv_312/
+venv/
+env/
+
+# slurmoutput
+*.out
+
+# logs
+*.log
+
+# vim swap
+*.swp
+
+**/*.gradio/

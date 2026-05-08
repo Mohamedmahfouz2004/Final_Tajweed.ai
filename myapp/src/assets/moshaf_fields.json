@@ -1,0 +1,698 @@
+[
+  {
+    "name": "rewaya",
+    "label": "الرواية",
+    "default": null,
+    "type": "select",
+    "options": [
+      {
+        "value": "hafs",
+        "label": "حفص"
+      }
+    ]
+  },
+  {
+    "name": "takbeer",
+    "label": "التكبير",
+    "default": "no_takbeer",
+    "type": "select",
+    "options": [
+      {
+        "value": "no_takbeer",
+        "label": "لا تكبير"
+      },
+      {
+        "value": "beginning_of_sharh",
+        "label": "التكبير من أول الشرح لأول الناس"
+      },
+      {
+        "value": "end_of_doha",
+        "label": "التكبير من آخر الضحى لآخر الناس"
+      },
+      {
+        "value": "general_takbeer",
+        "label": "التكبير أول كل سورة إلا التوبة"
+      }
+    ]
+  },
+  {
+    "name": "madd_monfasel_len",
+    "label": "مد المنفصل",
+    "default": null,
+    "type": "select",
+    "options": [
+      {
+        "value": "2",
+        "label": "2"
+      },
+      {
+        "value": "3",
+        "label": "3"
+      },
+      {
+        "value": "4",
+        "label": "4"
+      },
+      {
+        "value": "5",
+        "label": "5"
+      }
+    ]
+  },
+  {
+    "name": "madd_mottasel_len",
+    "label": "مقدار المد المتصل",
+    "default": null,
+    "type": "select",
+    "options": [
+      {
+        "value": "4",
+        "label": "4"
+      },
+      {
+        "value": "5",
+        "label": "5"
+      },
+      {
+        "value": "6",
+        "label": "6"
+      }
+    ]
+  },
+  {
+    "name": "madd_mottasel_waqf",
+    "label": "مقدار المد المتصل وقفا",
+    "default": null,
+    "type": "select",
+    "options": [
+      {
+        "value": "4",
+        "label": "4"
+      },
+      {
+        "value": "5",
+        "label": "5"
+      },
+      {
+        "value": "6",
+        "label": "6"
+      }
+    ]
+  },
+  {
+    "name": "madd_aared_len",
+    "label": "مقدار المد العارض",
+    "default": null,
+    "type": "select",
+    "options": [
+      {
+        "value": "2",
+        "label": "2"
+      },
+      {
+        "value": "4",
+        "label": "4"
+      },
+      {
+        "value": "6",
+        "label": "6"
+      }
+    ]
+  },
+  {
+    "name": "madd_alleen_len",
+    "label": "مقدار مد اللين",
+    "default": null,
+    "type": "select",
+    "options": [
+      {
+        "value": "2",
+        "label": "2"
+      },
+      {
+        "value": "4",
+        "label": "4"
+      },
+      {
+        "value": "6",
+        "label": "6"
+      }
+    ]
+  },
+  {
+    "name": "ghonna_lam_and_raa",
+    "label": "غنة اللام و الراء",
+    "default": "no_ghonna",
+    "type": "select",
+    "options": [
+      {
+        "value": "ghonna",
+        "label": "غنة"
+      },
+      {
+        "value": "no_ghonna",
+        "label": "لا غنة"
+      }
+    ]
+  },
+  {
+    "name": "meem_aal_imran",
+    "label": "ميم آل عمران في قوله تعالى: {الم الله} وصلا",
+    "default": "waqf",
+    "type": "select",
+    "options": [
+      {
+        "value": "waqf",
+        "label": "وقف"
+      },
+      {
+        "value": "wasl_2",
+        "label": "فتح الميم ومدها حركتين"
+      },
+      {
+        "value": "wasl_6",
+        "label": "فتح الميم ومدها ستة حركات"
+      }
+    ]
+  },
+  {
+    "name": "madd_yaa_alayn_alharfy",
+    "label": "مقدار   المد اللازم الحرفي للعين",
+    "default": 6,
+    "type": "select",
+    "options": [
+      {
+        "value": "2",
+        "label": "2"
+      },
+      {
+        "value": "4",
+        "label": "4"
+      },
+      {
+        "value": "6",
+        "label": "6"
+      }
+    ]
+  },
+  {
+    "name": "saken_before_hamz",
+    "label": "الساكن قبل الهمز",
+    "default": "tahqeek",
+    "type": "select",
+    "options": [
+      {
+        "value": "tahqeek",
+        "label": "تحقيق"
+      },
+      {
+        "value": "general_sakt",
+        "label": "سكت عام"
+      },
+      {
+        "value": "local_sakt",
+        "label": "سكت خاص"
+      }
+    ]
+  },
+  {
+    "name": "sakt_iwaja",
+    "label": "السكت عند عوجا في الكهف",
+    "default": "waqf",
+    "type": "select",
+    "options": [
+      {
+        "value": "sakt",
+        "label": "سكت"
+      },
+      {
+        "value": "waqf",
+        "label": "وقف"
+      },
+      {
+        "value": "idraj",
+        "label": "إدراج"
+      }
+    ]
+  },
+  {
+    "name": "sakt_marqdena",
+    "label": "السكت عند مرقدنا  في يس",
+    "default": "waqf",
+    "type": "select",
+    "options": [
+      {
+        "value": "sakt",
+        "label": "سكت"
+      },
+      {
+        "value": "waqf",
+        "label": "وقف"
+      },
+      {
+        "value": "idraj",
+        "label": "إدراج"
+      }
+    ]
+  },
+  {
+    "name": "sakt_man_raq",
+    "label": "السكت عند  من راق في القيامة",
+    "default": "sakt",
+    "type": "select",
+    "options": [
+      {
+        "value": "sakt",
+        "label": "سكت"
+      },
+      {
+        "value": "waqf",
+        "label": "وقف"
+      },
+      {
+        "value": "idraj",
+        "label": "إدراج"
+      }
+    ]
+  },
+  {
+    "name": "sakt_bal_ran",
+    "label": "السكت عند  بل ران في  المطففين",
+    "default": "sakt",
+    "type": "select",
+    "options": [
+      {
+        "value": "sakt",
+        "label": "سكت"
+      },
+      {
+        "value": "waqf",
+        "label": "وقف"
+      },
+      {
+        "value": "idraj",
+        "label": "إدراج"
+      }
+    ]
+  },
+  {
+    "name": "sakt_maleeyah",
+    "label": "وجه  قوله تعالى {ماليه هلك} بالحاقة",
+    "default": "waqf",
+    "type": "select",
+    "options": [
+      {
+        "value": "sakt",
+        "label": "سكت"
+      },
+      {
+        "value": "waqf",
+        "label": "وقف"
+      },
+      {
+        "value": "idgham",
+        "label": "إدغام"
+      }
+    ]
+  },
+  {
+    "name": "between_anfal_and_tawba",
+    "label": "وجه بين الأنفال والتوبة",
+    "default": "waqf",
+    "type": "select",
+    "options": [
+      {
+        "value": "waqf",
+        "label": "وقف"
+      },
+      {
+        "value": "sakt",
+        "label": "سكت"
+      },
+      {
+        "value": "wasl",
+        "label": "وصل"
+      }
+    ]
+  },
+  {
+    "name": "noon_and_yaseen",
+    "label": "الإدغام والإظهار في النون عند الواو من قوله تعالى: {يس والقرآن}و {ن والقلم}",
+    "default": "izhar",
+    "type": "select",
+    "options": [
+      {
+        "value": "izhar",
+        "label": "إظهار"
+      },
+      {
+        "value": "idgham",
+        "label": "إدغام"
+      }
+    ]
+  },
+  {
+    "name": "yaa_ataan",
+    "label": " إثبات الياء وحذفها وقفا في قوله تعالى {آتان} بالنمل",
+    "default": "wasl",
+    "type": "select",
+    "options": [
+      {
+        "value": "wasl",
+        "label": "وصل"
+      },
+      {
+        "value": "hadhf",
+        "label": "حذف"
+      },
+      {
+        "value": "ithbat",
+        "label": "إثبات"
+      }
+    ]
+  },
+  {
+    "name": "start_with_ism",
+    "label": "وجه البدأ بكلمة {الاسم} في سورة الحجرات",
+    "default": "wasl",
+    "type": "select",
+    "options": [
+      {
+        "value": "wasl",
+        "label": "وصل"
+      },
+      {
+        "value": "lism",
+        "label": "لسم"
+      },
+      {
+        "value": "alism",
+        "label": "ألسم"
+      }
+    ]
+  },
+  {
+    "name": "yabsut",
+    "label": "السين والصاد في قوله تعالى: {والله يقبض ويبسط} بالبقرة",
+    "default": "seen",
+    "type": "select",
+    "options": [
+      {
+        "value": "seen",
+        "label": "سين"
+      },
+      {
+        "value": "saad",
+        "label": "صاد"
+      }
+    ]
+  },
+  {
+    "name": "bastah",
+    "label": "السين والصاد في قوله تعالى:  {وزادكم في الخلق بسطة} بالأعراف",
+    "default": "seen",
+    "type": "select",
+    "options": [
+      {
+        "value": "seen",
+        "label": "سين"
+      },
+      {
+        "value": "saad",
+        "label": "صاد"
+      }
+    ]
+  },
+  {
+    "name": "almusaytirun",
+    "label": "السين والصاد في قوله تعالى {أم هم المصيطرون} بالطور",
+    "default": "saad",
+    "type": "select",
+    "options": [
+      {
+        "value": "seen",
+        "label": "سين"
+      },
+      {
+        "value": "saad",
+        "label": "صاد"
+      }
+    ]
+  },
+  {
+    "name": "bimusaytir",
+    "label": "السين والصاد في قوله تعالى:  {لست عليهم بمصيطر} بالغاشية",
+    "default": "saad",
+    "type": "select",
+    "options": [
+      {
+        "value": "seen",
+        "label": "سين"
+      },
+      {
+        "value": "saad",
+        "label": "صاد"
+      }
+    ]
+  },
+  {
+    "name": "tasheel_or_madd",
+    "label": "همزة الوصل في قوله تعالى: {آلذكرين} بموضعي الأنعام و{آلآن} موضعي يونس و{آلله} بيونس والنمل",
+    "default": "madd",
+    "type": "select",
+    "options": [
+      {
+        "value": "tasheel",
+        "label": "تسهيل"
+      },
+      {
+        "value": "madd",
+        "label": "مد"
+      }
+    ]
+  },
+  {
+    "name": "yalhath_dhalik",
+    "label": "الإدغام وعدمه في قوله تعالى: {يلهث ذلك} بالأعراف",
+    "default": "idgham",
+    "type": "select",
+    "options": [
+      {
+        "value": "izhar",
+        "label": "إظهار"
+      },
+      {
+        "value": "idgham",
+        "label": "إدغام"
+      },
+      {
+        "value": "waqf",
+        "label": "وقف"
+      }
+    ]
+  },
+  {
+    "name": "irkab_maana",
+    "label": "الإدغام والإظهار في قوله تعالى: {اركب معنا} بهود",
+    "default": "idgham",
+    "type": "select",
+    "options": [
+      {
+        "value": "izhar",
+        "label": "إظهار"
+      },
+      {
+        "value": "idgham",
+        "label": "إدغام"
+      },
+      {
+        "value": "waqf",
+        "label": "وقف"
+      }
+    ]
+  },
+  {
+    "name": "noon_tamnna",
+    "label": " الإشمام والروم (الاختلاس) في قوله تعالى {لا تأمنا على يوسف}",
+    "default": "ishmam",
+    "type": "select",
+    "options": [
+      {
+        "value": "ishmam",
+        "label": "إشمام"
+      },
+      {
+        "value": "rawm",
+        "label": "روم"
+      }
+    ]
+  },
+  {
+    "name": "harakat_daaf",
+    "label": "حركة الضاد (فتح أو ضم) في قوله تعالى {ضعف} بالروم",
+    "default": "fath",
+    "type": "select",
+    "options": [
+      {
+        "value": "fath",
+        "label": "فتح"
+      },
+      {
+        "value": "dam",
+        "label": "ضم"
+      }
+    ]
+  },
+  {
+    "name": "alif_salasila",
+    "label": "إثبات الألف وحذفها وقفا في قوله تعالى: {سلاسلا} بسورة الإنسان",
+    "default": "wasl",
+    "type": "select",
+    "options": [
+      {
+        "value": "hadhf",
+        "label": "حذف"
+      },
+      {
+        "value": "ithbat",
+        "label": "إثبات"
+      },
+      {
+        "value": "wasl",
+        "label": "وصل"
+      }
+    ]
+  },
+  {
+    "name": "idgham_nakhluqkum",
+    "label": "إدغام القاف في الكاف إدغاما ناقصا أو كاملا {نخلقكم} بالمرسلات",
+    "default": "idgham_kamil",
+    "type": "select",
+    "options": [
+      {
+        "value": "idgham_naqis",
+        "label": "إدغام ناقص"
+      },
+      {
+        "value": "idgham_kamil",
+        "label": "إدغام كامل"
+      }
+    ]
+  },
+  {
+    "name": "raa_firq",
+    "label": "التفخيم والترقيق في راء {فرق} في الشعراء وصلا",
+    "default": "tafkheem",
+    "type": "select",
+    "options": [
+      {
+        "value": "waqf",
+        "label": "وقف"
+      },
+      {
+        "value": "tafkheem",
+        "label": "تفخيم"
+      },
+      {
+        "value": "tarqeeq",
+        "label": "ترقيق"
+      }
+    ]
+  },
+  {
+    "name": "raa_alqitr",
+    "label": "التفخيم والترقيق في راء {القطر} في سبأ وقفا",
+    "default": "wasl",
+    "type": "select",
+    "options": [
+      {
+        "value": "wasl",
+        "label": "وصل"
+      },
+      {
+        "value": "tafkheem",
+        "label": "تفخيم"
+      },
+      {
+        "value": "tarqeeq",
+        "label": "ترقيق"
+      }
+    ]
+  },
+  {
+    "name": "raa_misr",
+    "label": "التفخيم والترقيق في راء {مصر} في يونس وموضعي يوسف والزخرف  وقفا",
+    "default": "wasl",
+    "type": "select",
+    "options": [
+      {
+        "value": "wasl",
+        "label": "وصل"
+      },
+      {
+        "value": "tafkheem",
+        "label": "تفخيم"
+      },
+      {
+        "value": "tarqeeq",
+        "label": "ترقيق"
+      }
+    ]
+  },
+  {
+    "name": "raa_nudhur",
+    "label": "التفخيم والترقيق  في راء {نذر} بالقمر وقفا",
+    "default": "tafkheem",
+    "type": "select",
+    "options": [
+      {
+        "value": "wasl",
+        "label": "وصل"
+      },
+      {
+        "value": "tafkheem",
+        "label": "تفخيم"
+      },
+      {
+        "value": "tarqeeq",
+        "label": "ترقيق"
+      }
+    ]
+  },
+  {
+    "name": "raa_yasr",
+    "label": "التفخيم والترقيق في راء {يسر} بالفجر و{أن أسر} بطه والشعراء و{فأسر} بهود والحجر والدخان  وقفا",
+    "default": "tarqeeq",
+    "type": "select",
+    "options": [
+      {
+        "value": "wasl",
+        "label": "وصل"
+      },
+      {
+        "value": "tafkheem",
+        "label": "تفخيم"
+      },
+      {
+        "value": "tarqeeq",
+        "label": "ترقيق"
+      }
+    ]
+  },
+  {
+    "name": "meem_mokhfah",
+    "label": "هل الميم مخفاة أو مدغمة",
+    "default": "ikhfaa",
+    "type": "select",
+    "options": [
+      {
+        "value": "meem",
+        "label": "ميم"
+      },
+      {
+        "value": "ikhfaa",
+        "label": "إخفاء"
+      }
+    ]
+  }
+]

@@ -94,7 +94,7 @@ const AdminDashboard = () => {
     if (currentUser?.role !== 'admin') {
         return (
             <div className="flex flex-col items-center justify-center py-20 bg-gray-50 min-h-screen">
-                <AlertCircle size={64} color="#EF4444" className="mb-4" />
+                <AlertCircle size={64} color="#C53030" className="mb-4" />
                 <h2 className="text-2xl font-bold text-gray-800">عذراً، هذه الصفحة للمشرفين فقط</h2>
                 <button onClick={() => navigate('/')} className="mt-4 text-primary font-bold hover:underline cursor-pointer border-none bg-transparent">العودة للرئيسية</button>
             </div>

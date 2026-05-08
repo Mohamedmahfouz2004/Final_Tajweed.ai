@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, CheckCircle, GraduationCap, BarChart3, LogIn, LogOut, Shield } from 'lucide-react';
+import { BookOpen, LayoutDashboard, CheckCircle, GraduationCap, BarChart3, LogIn, LogOut, Shield, BookMarked } from 'lucide-react';
 import useAppStore from '../store/useAppStore';
 
 const Navbar = () => {
@@ -33,6 +33,7 @@ const Navbar = () => {
                 <NavLink to="/practice" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}> <CheckCircle size={20} /> <span>صحح تلاوتك</span> </NavLink>
                 <NavLink to="/lessons" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}> <GraduationCap size={20} /> <span>الدروس</span> </NavLink>
                 <NavLink to="/progress" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}> <BarChart3 size={20} /> <span>التقدم</span> </NavLink>
+                <NavLink to="/tafseer" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}> <BookMarked size={20} /> <span>القرآن مفسّر</span> </NavLink>
             </div>
             {isLoggedIn ? (
                 <div className="user-profile-mini bg-transparent" onClick={logout} style={{ width: 'auto' }}>

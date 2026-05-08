@@ -26,17 +26,18 @@
 
 body {
   font-family: 'IBM Plex Sans Arabic', sans-serif;
-  background-color: var(--background);
-  color: var(--text);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   line-height: 1.6;
   direction: rtl;
   overflow-x: hidden;
-  /* Subtle Background Pattern */
-  background-image: radial-gradient(#D4AF37 1px, transparent 1px);
-  background-size: 40px 40px;
+
+  /* Warm Islamic subtle gradient */
+  background-image:
+    radial-gradient(ellipse at 15% 0%, rgba(27, 94, 59, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 100%, rgba(184, 146, 62, 0.06) 0%, transparent 50%);
   background-attachment: fixed;
 
-  /* Global Selection Disable */
   user-select: none;
   -webkit-user-select: none;
   cursor: default;
@@ -88,30 +89,30 @@ label {
   min-height: 100vh;
 }
 
-/* --- Updates for Top Navbar --- */
+/* --- Navbar (Heritage Light) --- */
 .sidebar {
-  /* Retaining class name for potential refactoring ease, but renaming style */
   position: sticky;
   top: 0;
   width: 100%;
   height: auto;
-  background: var(--nav-bg);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
-  padding: 0.8rem 2rem;
+  background: rgba(255, 249, 240, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(184, 146, 62, 0.15);
+  padding: 0.7rem 2rem;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   z-index: 1000;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 16px rgba(44, 24, 16, 0.06);
 }
 
 .sidebar-brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--white);
+  color: #2C1810;
   text-decoration: none;
   border-bottom: none;
   padding-bottom: 0;
@@ -121,11 +122,9 @@ label {
 .nav-links {
   display: flex;
   flex-direction: row;
-  gap: 8px;
-  /* Closer together */
+  gap: 4px;
   flex: 1;
   justify-content: center;
-  /* Center links */
   margin: 0 2rem;
 }
 
@@ -133,44 +132,56 @@ label {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* Icon and text gap */
-  padding: 10px 20px;
-  color: rgba(255, 255, 255, 0.75);
+  padding: 8px 16px;
+  color: #9C8E7C;
   cursor: pointer;
   border-radius: 12px;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   font-weight: 500;
+  font-size: 14px;
   white-space: nowrap;
+  position: relative;
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--white);
-  transform: translateY(-2px);
+  background: rgba(184, 146, 62, 0.06);
+  color: #2C1810;
+  transform: translateY(-1px);
 }
 
 .nav-item.active {
-  background: var(--secondary);
-  color: var(--primary);
-  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+  color: #B8923E;
+  background: rgba(184, 146, 62, 0.08);
+}
+
+.nav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+  background: #B8923E;
+  border-radius: 2px;
 }
 
 .user-profile-mini {
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: white;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 6px 12px;
+  gap: 10px;
+  color: #2C1810;
+  background: rgba(184, 146, 62, 0.06);
+  padding: 5px 12px;
   border-radius: 50px;
   cursor: pointer;
-  margin-top: 0;
-  border-top: none;
-  padding-top: 6px;
+  border: 1px solid rgba(184, 146, 62, 0.12);
+  transition: all 0.25s ease;
 }
 
 .user-profile-mini:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(184, 146, 62, 0.12);
+  border-color: rgba(184, 146, 62, 0.25);
 }
 
 /* Hide text on small screens, keep icons */
@@ -497,4 +508,141 @@ html {
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Recitation Tracking (Tasmi3) — Mushaf Display Styles
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Quran Word Styling ─────────────────────────────────────── */
+.recite-qword {
+  font-family: 'Amiri', serif;
+  cursor: default;
+  transition: color 0.4s ease, background-color 0.4s ease, transform 0.3s ease;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+
+/* During recitation: unread words are invisible (structure preserved for layout) */
+.recite-qword--hidden {
+  color: transparent;
+  user-select: none;
+}
+
+/* After Done: unread = missed/skipped (red to highlight what was missed) */
+.recite-qword--unread {
+  color: #DC2626;
+  background-color: rgba(220, 38, 38, 0.06);
+  border-radius: 4px;
+  padding: 2px 4px;
+  text-decoration: underline;
+  text-decoration-color: rgba(220, 38, 38, 0.3);
+  text-underline-offset: 4px;
+}
+
+/* Correct word — dark primary color with subtle green glow */
+.recite-qword--correct {
+  color: var(--primary);
+  font-weight: 600;
+  animation: recite-word-reveal 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Incorrect word — red with highlight */
+.recite-qword--incorrect {
+  color: #DC2626;
+  background-color: rgba(220, 38, 38, 0.08);
+  border-radius: 4px;
+  padding: 2px 5px;
+  animation: recite-word-reveal 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes recite-word-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Ayah Marker ─────────────────────────────────────────────── */
+.recite-aya-marker {
+  font-family: 'Amiri', serif;
+  font-size: 0.6em;
+  color: var(--secondary);
+  margin: 0 6px;
+  display: inline-block;
+  vertical-align: middle;
+  opacity: 0.8;
+}
+
+.recite-aya-marker--bismillah {
+  font-size: 0.8em;
+  color: var(--secondary);
+}
+
+/* ── Stats Cards ─────────────────────────────────────────────── */
+.recite-stat-card {
+  text-align: center;
+  padding: 18px 12px;
+  border-radius: 16px;
+  background: white;
+  border: 1px solid rgba(4, 77, 41, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.recite-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Listening Pulse Ring ─────────────────────────────────────── */
+.recite-pulse-ring {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #DC2626;
+  animation: recite-pulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes recite-pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5);
+  }
+
+  50% {
+    transform: scale(1.4);
+    opacity: 0.7;
+    box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+  }
+}
+
+/* ── Mushaf Container Scrollbar (subtle) ──────────────────────── */
+.recite-mushaf-container {
+  overflow-y: auto;
+  max-height: 50vh;
+  scroll-behavior: smooth;
+}
+
+.recite-mushaf-container::-webkit-scrollbar {
+  width: 4px;
+  display: block !important;
+}
+
+.recite-mushaf-container::-webkit-scrollbar-thumb {
+  background: rgba(4, 77, 41, 0.15);
+  border-radius: 4px;
+}
+
+.recite-mushaf-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(4, 77, 41, 0.3);
 }

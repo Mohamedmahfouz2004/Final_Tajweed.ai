@@ -29,6 +29,9 @@ const LessonsView = lazy(() => import('./pages/LessonsView'));
 const LessonDetailView = lazy(() => import('./pages/LessonDetailView'));
 const QuizView = lazy(() => import('./pages/QuizView'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const TafseerView = lazy(() => import('./pages/TafseerView'));
+const LiveMoshafView = lazy(() => import('./pages/LiveMoshafView'));
+const PracticalQuizView = lazy(() => import('./pages/PracticalQuizView'));
 
 // --- Main Application Component ---
 const QuranTajweedApp = () => {
@@ -149,7 +152,7 @@ const QuranTajweedApp = () => {
             formData.append('start_word_idx', startIdx);
             formData.append('num_words', numWords);
 
-            const response = await fetch("http://127.0.0.1:8000/analyze", { method: "POST", body: formData });
+            const response = await fetch("http://127.0.0.1:8888/analyze", { method: "POST", body: formData });
             if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.detail || "Server error"); }
             const result = await response.json();
 
@@ -233,6 +236,11 @@ const QuranTajweedApp = () => {
                     <PracticeView handleRecording={handleRecording} />
                   </motion.div>
                 } />
+                <Route path="/live-moshaf" element={
+                  <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit">
+                    <LiveMoshafView />
+                  </motion.div>
+                } />
                 <Route path="/lessons" element={
                   <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit">
                     <LessonsView />
@@ -256,6 +264,16 @@ const QuranTajweedApp = () => {
                 <Route path="/admin" element={
                   <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit">
                     <AdminDashboard />
+                  </motion.div>
+                } />
+                <Route path="/tafseer" element={
+                  <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit">
+                    <TafseerView />
+                  </motion.div>
+                } />
+                <Route path="/practical-quiz/:errorType" element={
+                  <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit">
+                    <PracticalQuizView />
                   </motion.div>
                 } />
               </Routes>

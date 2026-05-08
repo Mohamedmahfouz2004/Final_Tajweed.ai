@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { reciters } from '../utils/data';
 import { generateInitialProgress } from '../utils/data';
 import audioService from '../utils/audioService';
+import { SURAH_LIST } from '../utils/surahNames';
 
 const useAppStore = create((set, get) => ({
     // --- Auth State ---
@@ -55,7 +56,7 @@ const useAppStore = create((set, get) => ({
     setSelectedLesson: (lesson) => set({ selectedLesson: lesson }),
 
     // --- Quran Data ---
-    surahs: [],
+    surahs: SURAH_LIST,
     setSurahs: (surahs) => set({ surahs }),
     userProgress: {
         versesPracticed: 0,
@@ -70,7 +71,7 @@ const useAppStore = create((set, get) => ({
     // --- Data Actions ---
     fetchLessons: async () => {
         try {
-            const res = await fetch('http://127.0.0.1:5000/api/lessons');
+            const res = await fetch('http://localhost:5000/api/lessons');
             const data = await res.json();
             if (Array.isArray(data)) {
                 set({ lessons: data });
@@ -86,7 +87,7 @@ const useAppStore = create((set, get) => ({
 
         try {
             console.log('[STORE] Fetching progress summary...');
-            const res = await fetch('http://127.0.0.1:5000/api/progress/summary', {
+            const res = await fetch('http://localhost:5000/api/progress/summary', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -108,13 +109,30 @@ const useAppStore = create((set, get) => ({
         }
     },
 
+    fetchSurahs: async () => {
+        // We already have a base list from SURAH_LIST, but we can refresh it from Muaalem API
+        try {
+            const res = await fetch('http://localhost:8888/api/surahs');
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                set({ surahs: data.map(s => ({
+                    id: parseInt(s.id),
+                    name: s.name,
+                    aya_count: parseInt(s.aya_count)
+                })) });
+            }
+        } catch (err) {
+            console.warn('Muaalem server not reachable for surahs, using local fallback:', err.message);
+        }
+    },
+
     updateUserProgress: async (lessonId, status, score) => {
         const token = localStorage.getItem('tajweed_token');
         if (!token) return;
 
         try {
             console.log('[STORE] Updating progress for lesson:', lessonId, { status, score });
-            const res = await fetch('http://127.0.0.1:5000/api/progress/update', {
+            const res = await fetch('http://localhost:5000/api/progress/update', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -145,7 +163,7 @@ const useAppStore = create((set, get) => ({
         if (!token) return;
 
         try {
-            await fetch('http://127.0.0.1:5000/api/progress/log-mistake', {
+            await fetch('http://localhost:5000/api/progress/log-mistake', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -158,11 +176,68 @@ const useAppStore = create((set, get) => ({
         }
     },
 
+    updateLiveMistake: async (errorType, context = {}) => {
+        // context: { surahNumber, ayahNumber, ayahText, charIndex }
+        
+        // 1. Update Local State (Immediate Feedback)
+        set((state) => {
+            const currentMistakes = [...state.userProgress.mistakeStats];
+            const existing = currentMistakes.find(m => m.name === errorType);
+            
+            if (existing) {
+                existing.count += 1;
+            } else {
+                currentMistakes.push({ name: errorType, count: 1 });
+            }
+
+            return {
+                userProgress: {
+                    ...state.userProgress,
+                    mistakeStats: currentMistakes,
+                    totalMistakes: (state.userProgress.totalMistakes || 0) + 1
+                }
+            };
+        });
+
+        // We no longer persist to DB here. This is now handled in batch when the session ends.
+    },
+
+    saveSessionMistakes: async (mistakesArray) => {
+        const token = localStorage.getItem('tajweed_token');
+        if (!token || !mistakesArray || mistakesArray.length === 0) return;
+
+        try {
+            console.log(`[STORE] Saving batch of ${mistakesArray.length} mistakes at session end.`);
+            // Using Promise.all to log all mistakes concurrently
+            await Promise.all(mistakesArray.map(m => 
+                fetch('http://localhost:5000/api/progress/log-mistake', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ 
+                        error_type: m.name,
+                        surah_number: m.surahNumber || null,
+                        ayah_number: m.ayahNumber || null,
+                        ayah_text: m.ayahText || '',
+                        char_index: m.charIndex || null,
+                    })
+                })
+            ));
+            
+            // Refresh stats after batch save
+            get().fetchUserProgress();
+        } catch (err) {
+            console.error('Failed to batch save session mistakes:', err);
+        }
+    },
+
     // --- Admin Actions ---
     addLesson: async (lessonData) => {
         const token = localStorage.getItem('tajweed_token');
         try {
-            const res = await fetch('http://127.0.0.1:5000/api/admin/lessons', {
+            const res = await fetch('http://localhost:5000/api/admin/lessons', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -359,6 +434,8 @@ const useAppStore = create((set, get) => ({
     setIsPlaying: (val) => set({ isPlaying: val }),
     isRecording: false,
     setIsRecording: (val) => set({ isRecording: val }),
+    sessionMistakes: [],
+    setSessionMistakes: (val) => set({ sessionMistakes: val }),
     mistakes: [],
     setMistakes: (val) => set({ mistakes: val }),
     showSurahList: false,
@@ -377,6 +454,30 @@ const useAppStore = create((set, get) => ({
     setLiveTranscription: (val) => set({ liveTranscription: val }),
     phonemeDiffs: [],
     setPhonemeDiffs: (val) => set({ phonemeDiffs: val }),
+    moshafSettings: null,
+    setMoshafSettings: (val) => set({ moshafSettings: val }),
+
+    // --- Analytics Session Data ---
+    currentSessionId: null,
+    setCurrentSessionId: (val) => set({ currentSessionId: val }),
+    lastSessionMetrics: null,
+    setLastSessionMetrics: (val) => set({ lastSessionMetrics: val }),
+    analyticsReport: null,
+    setAnalyticsReport: (val) => set({ analyticsReport: val }),
+    
+    fetchSessionAnalytics: async (sessionId) => {
+        try {
+            const res = await fetch(`http://127.0.0.1:8888/api/session/${sessionId}/analytics`);
+            const data = await res.json();
+            if (data && !data.error) {
+                set({ analyticsReport: data });
+                return data;
+            }
+        } catch (err) {
+            console.error('Failed to fetch session analytics:', err);
+        }
+        return null;
+    },
 
     // --- Listen Section State ---
     listenSurah: null,

@@ -16,12 +16,17 @@ export const lessonsData = [
 
 const LessonsView = () => {
     const navigate = useNavigate();
-    const { isLoggedIn, openAuthModal, lessons, fetchLessons, userProgress, fetchUserProgress } = useAppStore();
+    const isLoggedIn = useAppStore(s => s.isLoggedIn);
+    const openAuthModal = useAppStore(s => s.openAuthModal);
+    const lessons = useAppStore(s => s.lessons);
+    const fetchLessons = useAppStore(s => s.fetchLessons);
+    const userProgress = useAppStore(s => s.userProgress);
+    const fetchUserProgress = useAppStore(s => s.fetchUserProgress);
 
     React.useEffect(() => {
         fetchLessons();
         if (isLoggedIn) fetchUserProgress();
-    }, [fetchLessons, isLoggedIn, fetchUserProgress]);
+    }, [isLoggedIn]);
 
     return (
         <motion.div variants={staggerContainer} initial="initial" animate="animate">

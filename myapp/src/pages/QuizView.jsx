@@ -107,7 +107,7 @@ const QuizView = () => {
                         transition={{ type: 'spring', stiffness: 300, delay: 0.2 }}
                         className={`w-28 h-28 rounded-full mx-auto mb-6 flex items-center justify-center ${isPassed ? 'bg-emerald-50 border-4 border-emerald-100' : 'bg-red-50 border-4 border-red-100'}`}
                     >
-                        {isPassed ? <CheckCircle size={56} color="#10B981" /> : <XCircle size={56} color="#DC2626" />}
+                        {isPassed ? <CheckCircle size={56} color="#2D8A56" /> : <XCircle size={56} color="#DC2626" />}
                     </motion.div>
 
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
@@ -154,7 +154,7 @@ const QuizView = () => {
                         animate={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
                         transition={{ duration: 0.4, ease: 'easeOut' }}
                         className="h-full rounded"
-                        style={{ background: 'linear-gradient(90deg, #044D29, #D4AF37)' }}
+                        style={{ background: 'linear-gradient(90deg, #1B5E3B, #B8923E)' }}
                     />
                 </div>
 
@@ -178,12 +178,12 @@ const QuizView = () => {
 
                                 if (isAnswerChecked) {
                                     if (option === currentQuestion.correct_answer) {
-                                        bgClass = 'bg-emerald-50'; borderColor = '#10B981'; textColor = '#065F46';
+                                        bgClass = 'bg-emerald-50'; borderColor = '#2D8A56'; textColor = '#065F46';
                                     } else if (option === selectedAnswer) {
-                                        bgClass = 'bg-red-50'; borderColor = '#EF4444'; textColor = '#991B1B';
+                                        bgClass = 'bg-red-50'; borderColor = '#C53030'; textColor = '#991B1B';
                                     }
                                 } else if (selectedAnswer === option) {
-                                    borderColor = '#D4AF37'; bgClass = 'bg-amber-50';
+                                    borderColor = '#B8923E'; bgClass = 'bg-amber-50';
                                 }
 
                                 return (

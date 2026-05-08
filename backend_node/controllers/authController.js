@@ -7,8 +7,8 @@ const crypto = require('crypto');
 
 // Generate JWT tokens
 const generateTokens = (userId) => {
-    const accessToken = jwt.sign({ user: userId }, process.env.ACCESS_TOKEN_SECRET || 'secret', { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ user: userId }, process.env.REFRESH_TOKEN_SECRET || 'refreshSecret', { expiresIn: '7d' });
+    const accessToken = jwt.sign({ user: userId }, process.env.ACCESS_TOKEN_SECRET || 'secret', { expiresIn: '7d' });
+    const refreshToken = jwt.sign({ user: userId }, process.env.REFRESH_TOKEN_SECRET || 'refreshSecret', { expiresIn: '30d' });
     return { accessToken, refreshToken };
 };
 
@@ -129,7 +129,7 @@ exports.refresh = async (req, res) => {
 
         jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET || 'refreshSecret', (err, decoded) => {
             if (err || foundToken.user.toString() !== decoded.user) return res.sendStatus(403);
-            const accessToken = jwt.sign({ user: decoded.user }, process.env.ACCESS_TOKEN_SECRET || 'secret', { expiresIn: '15m' });
+            const accessToken = jwt.sign({ user: decoded.user }, process.env.ACCESS_TOKEN_SECRET || 'secret', { expiresIn: '7d' });
             res.json({ accessToken });
         });
 
