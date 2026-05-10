@@ -26,7 +26,7 @@ const LessonsView = () => {
     React.useEffect(() => {
         fetchLessons();
         if (isLoggedIn) fetchUserProgress();
-    }, [isLoggedIn]);
+    }, [isLoggedIn, fetchLessons, fetchUserProgress]);
 
     return (
         <motion.div variants={staggerContainer} initial="initial" animate="animate">

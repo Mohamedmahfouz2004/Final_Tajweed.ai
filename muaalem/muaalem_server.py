@@ -268,19 +268,23 @@ def build_reference_for_range(surah: int, from_aya: int, to_aya: int, moshaf: Mo
         - ref: phonetic reference object
         - display_uthmani: text with ayah end markers for UI display
     """
+    logger.info("Building reference for range: Surah %d, Ayahs %d-%d", surah, from_aya, to_aya)
     uthmani_parts = []
     display_parts = []
     for aya_num in range(from_aya, to_aya + 1):
-        aya = Aya(surah, aya_num)
+        logger.info("Fetching aya %d...", aya_num)
+        aya = Aya(surah, aya_num, quran_dict=_tmp.quran_dict)
         aya_info = aya.get()
         word_count = len(aya_info.imlaey.split())
         aya_text = aya.get_by_imlaey_words(0, word_count).uthmani
         uthmani_parts.append(aya_text)
         display_parts.append(aya_text + " " + _aya_marker(aya_num))
 
+    logger.info("Ayahs fetched. Building phonetizer...")
     full_uthmani = " ".join(uthmani_parts)
     display_uthmani = " ".join(display_parts)
     ref = quran_phonetizer(full_uthmani, moshaf, remove_spaces=True)
+    logger.info("Phonetizer ready.")
     return full_uthmani, ref, display_uthmani
 
 
@@ -288,7 +292,7 @@ def get_uthmani_for_range(surah: int, from_aya: int, to_aya: int) -> str:
     """Get Uthmani text for display (with ayah markers)."""
     parts = []
     for aya_num in range(from_aya, to_aya + 1):
-        aya = Aya(surah, aya_num)
+        aya = Aya(surah, aya_num, quran_dict=_tmp.quran_dict)
         aya_info = aya.get()
         word_count = len(aya_info.imlaey.split())
         text = aya.get_by_imlaey_words(0, word_count).uthmani

@@ -29,14 +29,16 @@ const PracticeRecordCard = () => {
 
     // Update maxAya when surah changes
     useEffect(() => {
-        console.log('[PracticeRecord] selectedSurah changed:', selectedSurah);
         if (selectedSurah && Array.isArray(surahs)) {
             const s = surahs.find(s => s.id == selectedSurah);
             if (s) {
-                console.log('[PracticeRecord] Found surah info:', s);
-                setMaxAya(s.aya_count || 7);
-                setFromVerse(1);
-                setToVerse(s.aya_count || 7);
+                const newMax = s.aya_count || 7;
+                setMaxAya(newMax);
+                
+                // Only reset verses if they are currently out of bounds for the new surah
+                // This prevents overriding Voice Assistant settings
+                if (fromVerse > newMax || fromVerse < 1) setFromVerse(1);
+                if (toVerse > newMax || toVerse < 1) setToVerse(newMax);
             }
         }
     }, [selectedSurah, surahs]);

@@ -9,19 +9,17 @@ import useAppStore from '../store/useAppStore';
 import { Settings } from 'lucide-react';
 
 const PracticeView = ({ handleRecording }) => {
-    const { isLoggedIn, openAuthModal } = useAppStore();
-    const [viewState, setViewState] = useState('selection'); // 'selection' | 'practice'
-    const [activeTab, setActiveTab] = useState('record'); // 'listen' | 'record'
+    const { isLoggedIn, openAuthModal, practiceViewState, setPracticeViewState, practiceActiveTab, setPracticeActiveTab } = useAppStore();
 
     const handleSelection = (mode) => {
-        setActiveTab(mode);
-        setViewState('practice');
+        setPracticeActiveTab(mode);
+        setPracticeViewState('practice');
     };
 
     return (
         <div className="min-h-[calc(100vh-140px)] p-4 md:p-8 max-w-7xl mx-auto w-full flex flex-col relative">
             <AnimatePresence mode="wait">
-                {viewState === 'selection' ? (
+                {practiceViewState === 'selection' ? (
                     <motion.div
                         key="selection"
                         variants={staggerContainer}
@@ -104,26 +102,26 @@ const PracticeView = ({ handleRecording }) => {
                         <div className="flex justify-center mb-6">
                             <div className="flex p-1 rounded-xl shadow-md gap-0.5" style={{ background: '#FFF9F0', border: '1px solid rgba(184,146,62,0.15)' }}>
                                 <button
-                                    className={`flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-bold text-xs transition-all duration-300 border-none cursor-pointer ${activeTab === 'listen' ? 'bg-gradient-to-r from-[#B8923E] to-[#8B6D2E] text-white shadow-md' : 'text-[#9C8E7C] hover:text-[#8B6D2E]'}`}
-                                    onClick={() => setActiveTab('listen')}
+                                    className={`flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-bold text-xs transition-all duration-300 border-none cursor-pointer ${practiceActiveTab === 'listen' ? 'bg-gradient-to-r from-[#B8923E] to-[#8B6D2E] text-white shadow-md' : 'text-[#9C8E7C] hover:text-[#8B6D2E]'}`}
+                                    onClick={() => setPracticeActiveTab('listen')}
                                 >
-                                    <Play size={14} className={activeTab === 'listen' ? 'fill-current' : ''} /> استمع
+                                    <Play size={14} className={practiceActiveTab === 'listen' ? 'fill-current' : ''} /> استمع
                                 </button>
                                 <button
-                                    className={`flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-bold text-xs transition-all duration-300 border-none cursor-pointer ${activeTab === 'record' ? 'bg-gradient-to-r from-[#1B5E3B] to-[#2D8A56] text-white shadow-md' : 'text-[#9C8E7C] hover:text-[#1B5E3B]'}`}
-                                    onClick={() => setActiveTab('record')}
+                                    className={`flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-bold text-xs transition-all duration-300 border-none cursor-pointer ${practiceActiveTab === 'record' ? 'bg-gradient-to-r from-[#1B5E3B] to-[#2D8A56] text-white shadow-md' : 'text-[#9C8E7C] hover:text-[#1B5E3B]'}`}
+                                    onClick={() => setPracticeActiveTab('record')}
                                 >
                                     <Mic size={14} /> سجّل
                                 </button>
                                 <button
-                                    className={`flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-bold text-xs transition-all duration-300 border-none cursor-pointer ${activeTab === 'settings' ? 'bg-gradient-to-r from-[#044D29] to-[#044D29] text-white shadow-md' : 'text-[#9C8E7C] hover:text-[#044D29]'}`}
-                                    onClick={() => setActiveTab('settings')}
+                                    className={`flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-bold text-xs transition-all duration-300 border-none cursor-pointer ${practiceActiveTab === 'settings' ? 'bg-gradient-to-r from-[#044D29] to-[#044D29] text-white shadow-md' : 'text-[#9C8E7C] hover:text-[#044D29]'}`}
+                                    onClick={() => setPracticeActiveTab('settings')}
                                 >
-                                    <Settings size={14} className={activeTab === 'settings' ? 'text-white' : ''} /> الإعدادات
+                                    <Settings size={14} className={practiceActiveTab === 'settings' ? 'text-white' : ''} /> الإعدادات
                                 </button>
                                 <button
                                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold text-xs text-[#9C8E7C] hover:text-[#2C1810] transition-all border-none cursor-pointer"
-                                    onClick={() => setViewState('selection')}
+                                    onClick={() => setPracticeViewState('selection')}
                                 >
                                     <ArrowRight size={14} /> رجوع
                                 </button>
@@ -132,13 +130,13 @@ const PracticeView = ({ handleRecording }) => {
 
                         <div className="flex-1 relative min-h-[400px]">
                             <AnimatePresence mode="wait">
-                                {activeTab === 'listen' && (
+                                {practiceActiveTab === 'listen' && (
                                     <motion.div key="listen" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                                        <PracticeListenCard isActive={true} onClick={() => {}} activeViewTab={activeTab} setActiveViewTab={setActiveTab} />
+                                        <PracticeListenCard isActive={true} onClick={() => {}} activeViewTab={practiceActiveTab} setActiveViewTab={setPracticeActiveTab} />
                                     </motion.div>
                                 )}
 
-                                {activeTab === 'record' && (
+                                {practiceActiveTab === 'record' && (
                                     <motion.div key="record" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="h-full">
                                         {!isLoggedIn ? (
                                             <div className="flex-1 flex items-center justify-center min-h-[40vh] py-8">
@@ -165,7 +163,7 @@ const PracticeView = ({ handleRecording }) => {
                                     </motion.div>
                                 )}
 
-                                {activeTab === 'settings' && (
+                                {practiceActiveTab === 'settings' && (
                                     <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="h-full">
                                         <MoshafSettings />
                                     </motion.div>

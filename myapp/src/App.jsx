@@ -20,6 +20,7 @@ import Footer from './components/Footer';
 import Navbar from './components/Navbar';
 import MistakesModal from './components/MistakesModal';
 import AuthModal from './components/AuthModal';
+import VoiceAssistant from './components/VoiceAssistant';
 
 // Pages (lazy loaded — only fetched when route is visited)
 const HomeView = lazy(() => import('./pages/HomeView'));
@@ -198,6 +199,7 @@ const QuranTajweedApp = () => {
     <div className="app-layout">
       <SplashScreen show={showSplash} />
       <Toast message={toast} />
+      <VoiceAssistant />
 
       {/* GLOBAL MODALS */}
       <AuthModal

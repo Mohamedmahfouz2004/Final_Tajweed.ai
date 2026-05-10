@@ -424,7 +424,7 @@ const useAppStore = create((set, get) => ({
     // --- Practice State ---
     selectedSurah: '',
     setSelectedSurah: (val) => set({ selectedSurah: val }),
-    selectedReciter: 'ar.alafasy',
+    selectedReciter: 1,
     setSelectedReciter: (val) => set({ selectedReciter: val }),
     fromVerse: '',
     setFromVerse: (val) => set({ fromVerse: val }),
@@ -438,6 +438,12 @@ const useAppStore = create((set, get) => ({
     setSessionMistakes: (val) => set({ sessionMistakes: val }),
     mistakes: [],
     setMistakes: (val) => set({ mistakes: val }),
+
+    // --- Practice UI State (moved to store for voice control) ---
+    practiceViewState: 'selection', // 'selection' | 'practice'
+    setPracticeViewState: (val) => set({ practiceViewState: val }),
+    practiceActiveTab: 'record', // 'listen' | 'record'
+    setPracticeActiveTab: (val) => set({ practiceActiveTab: val }),
     showSurahList: false,
     setShowSurahList: (val) => set({ showSurahList: val }),
     showReciterList: false,
