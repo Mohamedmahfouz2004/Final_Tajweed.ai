@@ -4,8 +4,8 @@
  */
 
 // 1. Text to Speech (TTS)
-const ELEVENLABS_API_KEY = 'sk_32e59c90d9b86944a0b66e74db1fdc8fa9ee7930544e17c4';
-const VOICE_ID = '15tA2ZAIKsMz5AmwMxx4'; // User's new custom designed voice
+const ELEVENLABS_API_KEY = 'sk_7360213f996215ad52f14f0e35e348dc0b4acd3c50d0f5c8';
+const VOICE_ID = 've9185oRsQi5NuTQ7DK2'; // User's new custom designed voice
 
 export const speakArabic = async (text) => {
   try {
@@ -72,7 +72,7 @@ export const startVoiceCommands = (onCommand, onError) => {
     };
 
     recognition.onend = () => {
-      setTimeout(() => {
+      recognition._restartTimeout = setTimeout(() => {
         try { recognition.start(); } catch (e) {}
       }, 1000);
     };
@@ -99,17 +99,16 @@ export const getRouteFromCommand = (transcript) => {
   
   const normalizedTranscript = transcript.trim().toLowerCase()
     .replace(/[أإآ]/g, 'ا')
-    .replace(/ة/g, 'ه')
-    .replace(/\s+/g, ''); // Remove spaces for ultra-flexible matching
+    .replace(/ة/g, 'ه'); // Removed space stripping to avoid merging words
 
   for (const [route, keywords] of Object.entries(commandsMap)) {
     for (const keyword of keywords) {
       const normalizedKeyword = keyword.toLowerCase()
         .replace(/[أإآ]/g, 'ا')
-        .replace(/ة/g, 'ه')
-        .replace(/\s+/g, '');
+        .replace(/ة/g, 'ه');
         
-      if (normalizedTranscript.includes(normalizedKeyword) || normalizedKeyword.includes(normalizedTranscript)) {
+      // Only match if the user's speech contains the full keyword
+      if (normalizedTranscript.includes(normalizedKeyword)) {
         return route;
       }
     }

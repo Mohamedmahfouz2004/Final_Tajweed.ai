@@ -8,6 +8,7 @@ const VoiceAssistant = () => {
   const location = useLocation();
   const showToast = useAppStore(s => s.showToast);
   const isRecording = useAppStore(s => s.isRecording);
+  const isPlaying = useAppStore(s => s.isPlaying);
   const setIsRecording = useAppStore(s => s.setIsRecording);
   const setSelectedSurah = useAppStore(s => s.setSelectedSurah);
   const setFromVerse = useAppStore(s => s.setFromVerse);
@@ -89,6 +90,23 @@ const VoiceAssistant = () => {
     if (t.includes('الغ') || t.includes('توقف') || t.includes('كنسل')) {
       convStepRef.current = null;
       speakArabic("تم إلغاء العملية.");
+      return;
+    }
+
+    // Navigation (Highest priority - allows breaking out of conversation)
+    const route = getRouteFromCommand(t);
+    if (route && route !== location.pathname) {
+      convStepRef.current = null; // Reset conversation if navigating away
+      
+      if (route === '/progress') {
+        setTimeout(() => {
+          speakArabic("أنت الآن في صفحة التقدم. هل تريد أن تسمع ملخص الإنجازات والأخطاء؟");
+        }, 2500);
+      }
+
+      setTimeout(() => {
+        navigate(route);
+      }, 500);
       return;
     }
 
@@ -188,25 +206,6 @@ const VoiceAssistant = () => {
       }
     }
 
-    // Navigation
-    const route = getRouteFromCommand(t);
-    if (route) {
-      // Removed the initial "Okay" response as requested
-      // const pageName = getPageNameAr(route);
-      // speakArabic(`حاضر، سأفتح لك ${pageName}.`);
-      
-      if (route === '/progress') {
-        setTimeout(() => {
-          speakArabic("أنت الآن في صفحة التقدم. هل تريد أن تسمع ملخص الإنجازات والأخطاء؟");
-        }, 2500);
-      }
-
-      setTimeout(() => {
-        navigate(route);
-      }, 500);
-      return;
-    }
-
     // Handle detailed stats request explicitly - Removed "قولي" and added new triggers
     const triggerKeywords = ['الملخص', 'النتائج', 'انجازاتي', 'مستوايا', 'اريد الملخص', 'ما هي النتائج', 'عملت ايه'];
     if (triggerKeywords.some(key => t.includes(key))) {
@@ -231,8 +230,11 @@ const VoiceAssistant = () => {
   };
 
   useEffect(() => {
-    if (isRecording) {
+    if (isRecording || isPlaying) {
       if (recognitionRef.current) {
+        if (recognitionRef.current._restartTimeout) {
+          clearTimeout(recognitionRef.current._restartTimeout);
+        }
         recognitionRef.current.onend = null;
         recognitionRef.current.stop();
         recognitionRef.current = null;
@@ -245,7 +247,7 @@ const VoiceAssistant = () => {
         console.error("Voice Error:", err);
       });
     }
-  }, [isRecording]);
+  }, [isRecording, isPlaying]);
 
   const lastSpokenPath = useRef('');
 

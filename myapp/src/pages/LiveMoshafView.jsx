@@ -92,10 +92,11 @@ const LiveMoshafView = () => {
         setLastSessionMetrics,
         setCurrentSessionId,
         fetchSessionAnalytics,
-        updateLiveMistake
+        updateLiveMistake,
+        isRecording,
+        setIsRecording
     } = useAppStore();
 
-    const [isRecording, setIsRecording] = useState(false);
     const [uthmaniRef, setUthmaniRef] = useState('');          // Plain text for annotation
     const [displayUthmani, setDisplayUthmani] = useState('');  // Text with ayah markers for display
     const [annotatedUthmani, setAnnotatedUthmani] = useState('');
