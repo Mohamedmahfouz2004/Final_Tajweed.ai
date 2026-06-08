@@ -2412,6 +2412,20 @@ label {
 /* ── no-op (kept so a swapped utility class doesn't force sharp corners) ── */
 .ui-no-radius {}
 
+/* ── live recitation word states (live-moshaf) ── */
+.lm-word {
+  padding: 0 2px;
+  border-radius: 6px;
+  transition: color 0.3s ease, background-color 0.3s ease;
+}
+.lm-word--unread { color: #B4AA8E; }                 /* not recited yet — dim but readable */
+.lm-word--correct { color: #1B7355; font-weight: 600; }   /* said right → green */
+.lm-word--incorrect {                                 /* said wrong → red */
+  color: #8B3A2A;
+  background: rgba(139, 58, 42, 0.12);
+  padding: 1px 5px;
+}
+
 /* ══════════════════════════════════════════════
    ADMIN LAYOUT
 ══════════════════════════════════════════════ */
