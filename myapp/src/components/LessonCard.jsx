@@ -1,41 +1,41 @@
 import { motion } from 'framer-motion';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, ArrowRight } from 'lucide-react';
 
-const LessonCard = ({ lesson, onSelect, isCompleted }) => {
+const LessonCard = ({ lesson, onSelect, isCompleted, index = 0 }) => {
+    const num = String(index + 1).padStart(2, '0');
     return (
-        <motion.div
-            className={`glass-panel p-6 cursor-pointer border-2 transition-all duration-300 ${isCompleted ? 'border-emerald-500 bg-emerald-50/50' : 'border-white/60 bg-white/85'}`}
+        <motion.button
+            type="button"
+            className={`ui-tile ${isCompleted ? 'ui-tile--emerald' : ''}`}
             onClick={onSelect}
-            whileHover={{ y: -8, borderColor: isCompleted ? '#10B981' : '#D4AF37', boxShadow: '0 15px 30px rgba(0, 0, 0, 0.12)' }}
+            whileHover={{}}
             whileTap={{ scale: 0.98 }}
         >
-            <div className="flex justify-between items-start mb-4">
-                <motion.div
-                    whileHover={{ rotate: [0, -10, 10, 0] }}
-                    transition={{ duration: 0.4 }}
-                    className={`p-2.5 rounded-xl ${isCompleted ? 'bg-emerald-100/50' : 'bg-gray-100'}`}
-                >
-                    {lesson.icon}
-                </motion.div>
-                <div className="flex items-center gap-2">
-                    {isCompleted && <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">تم الإكمال <CheckCircle size={10} /></span>}
-                    <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">{lesson.duration}</span>
-                </div>
+            <div className="ui-tile-ghost-num">{num}</div>
+
+            <div className="ui-action-row" style={{ position: 'relative', zIndex: 1 }}>
+                <span className="ui-tile-icon" style={{
+                    color: isCompleted ? 'var(--brass-500)' : 'var(--emerald-700)'
+                }}>
+                    {lesson.icon || <span style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.4rem' }}>{num.slice(-1)}</span>}
+                </span>
+                <span className={`ui-badge ${isCompleted ? 'ui-badge--ok' : ''}`}>
+                    {isCompleted ? (<><CheckCircle size={11} strokeWidth={2.4} /> DONE</>) : lesson.duration || '— min'}
+                </span>
             </div>
-            <h3 className="text-xl text-gray-800 mb-2 font-amiri flex items-center gap-2">
-                {lesson.title}
-            </h3>
-            <p className="text-gray-500 text-sm mb-4">{lesson.description}</p>
-            <motion.button
-                whileHover={{ background: isCompleted ? '#059669' : '#D4AF37', color: 'white' }}
-                className={`w-full py-2.5 bg-transparent border-2 rounded-lg font-bold cursor-pointer transition-colors ${isCompleted
-                    ? 'border-emerald-600 text-emerald-600'
-                    : 'border-secondary text-secondary'
-                    }`}
-            >
-                {isCompleted ? 'مراجعة الدرس' : 'ابدأ الدرس'}
-            </motion.button>
-        </motion.div>
+
+            <div style={{ position: 'relative', zIndex: 1 }}>
+                <div className="ui-tile-title">{lesson.title}</div>
+                {lesson.description && (
+                    <div className="ui-tile-desc">{lesson.description}</div>
+                )}
+            </div>
+
+            <div className="ui-tile-cta">
+                {isCompleted ? 'REVIEW' : 'START LESSON'}
+                <ArrowRight size={12} className="rotate-180" />
+            </div>
+        </motion.button>
     );
 };
 

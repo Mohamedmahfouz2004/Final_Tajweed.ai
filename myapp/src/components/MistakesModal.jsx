@@ -1,15 +1,16 @@
+'use client';
+
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { XCircle, AlertTriangle, Activity, Mic, BookOpen } from 'lucide-react';
-import { modalOverlay } from '../utils/animations';
+import { X, AlertTriangle, Activity, Mic, BookOpen } from 'lucide-react';
 import useAppStore from '../store/useAppStore';
 import { getErrorInfo } from '../utils/errorTypeMap';
 
 const MistakesModal = ({ isOpen, onClose }) => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const { userProgress, sessionMistakes } = useAppStore();
-    
+
     const mistakeStats = React.useMemo(() => {
         if (sessionMistakes && sessionMistakes.length > 0) {
             const counts = {};
@@ -19,22 +20,19 @@ const MistakesModal = ({ isOpen, onClose }) => {
                 counts[m.name] = (counts[m.name] || 0) + 1;
                 total++;
             });
-
-            return Object.keys(counts).map((name) => {
+            return Object.keys(counts).map(name => {
                 const info = getErrorInfo(name);
                 return {
                     name: info?.name || name,
                     error_type: name,
                     value: Math.round((counts[name] / total) * 100),
                     count: counts[name],
-                    color: info?.color || '#6B7280',
-                    icon: info?.icon || '❓',
+                    color: info?.color || 'var(--ink-700)',
+                    icon: info?.icon || '◇',
                     category: info?.category || '',
                 };
             }).sort((a, b) => b.value - a.value);
         }
-        
-        // Fallback to DB stats
         if (userProgress.mistakeStats && userProgress.mistakeStats.length > 0) {
             const total = userProgress.mistakeStats.reduce((acc, m) => acc + m.count, 0);
             return userProgress.mistakeStats.map(m => {
@@ -44,13 +42,12 @@ const MistakesModal = ({ isOpen, onClose }) => {
                     error_type: m.name,
                     value: total > 0 ? Math.round((m.count / total) * 100) : 0,
                     count: m.count,
-                    color: info?.color || '#6B7280',
-                    icon: info?.icon || '❓',
+                    color: info?.color || 'var(--ink-700)',
+                    icon: info?.icon || '◇',
                     category: info?.category || m.rule_category || '',
                 };
             }).sort((a, b) => b.value - a.value);
         }
-
         return [];
     }, [sessionMistakes, userProgress.mistakeStats]);
 
@@ -61,123 +58,129 @@ const MistakesModal = ({ isOpen, onClose }) => {
         <AnimatePresence>
             {isOpen && (
                 <motion.div
-                    variants={modalOverlay}
-                    initial="initial" animate="animate" exit="exit"
-                    className="fixed inset-0 w-screen h-screen bg-black/55 z-[99999] flex items-center justify-center"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="ui-modal-backdrop"
+                    onClick={onClose}
                 >
-                    <div className="absolute inset-0" onClick={onClose}></div>
-
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        initial={{ opacity: 0, scale: 0.9, y: 16 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="absolute w-full max-w-[600px] mx-4 p-8 relative max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
-                    >        
-                        <button onClick={onClose} className="absolute top-5 right-5 bg-transparent border-none cursor-pointer p-1 z-10">
-                            <XCircle size={28} color="#6B7280" />
-                        </button>
-
-                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="text-center mb-8">
-                            <div className="w-[60px] h-[60px] rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4">
-                                <AlertTriangle size={32} />
+                        exit={{ opacity: 0, scale: 0.9, y: 16 }}
+                        className="ui-modal"
+                        style={{ maxWidth: 640, maxHeight: '88vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="ui-modal-header">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <AlertTriangle size={18} color="var(--rec-error)" />
+                                <span className="ui-modal-title">
+                                  {isSessionActive ? 'جلستك الحالية' : 'الأخطاء الشائعة'}
+                                </span>
                             </div>
-                            <h2 className="text-2xl text-primary mb-2 font-amiri">
-                                {isSessionActive ? 'تحليل جلستك الحالية' : 'تحليل الأخطاء الشائعة'}
-                            </h2>
-                            <p className="text-gray-500 text-sm">
-                                {isSessionActive 
-                                    ? 'توزيع الأخطاء المكتشفة بواسطة الذكاء الاصطناعي في تلاوتك الأخيرة' 
-                                    : 'توزيع نسبة الأخطاء المسجلة في الداتا بيز'}
-                            </p>
-                        </motion.div>
+                            <button onClick={onClose} className="ui-modal-close" type="button" aria-label="close">
+                                <X size={14} />
+                            </button>
+                        </div>
 
-                        <div className="flex flex-col gap-4">
-                            {mistakeStats.length > 0 ? (
-                                mistakeStats.map((stat, index) => (
-                                    <motion.div key={index}
-                                        initial={{ opacity: 0, x: -20 }}
+                        <div className="ui-modal-body" style={{ overflowY: 'auto', maxHeight: 'calc(88vh - 70px)' }}>
+                            <p style={{ color: 'var(--ink-700)', fontSize: '0.92rem', marginBottom: 18 }}>
+                                {isSessionActive
+                                    ? 'توزيع الأخطاء المكتشفة بواسطة الذكاء الاصطناعي في تلاوتك الأخيرة.'
+                                    : 'توزيع نسبة الأخطاء المسجلة في قاعدة البيانات.'}
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                {mistakeStats.length > 0 ? mistakeStats.map((stat, index) => (
+                                    <motion.div
+                                        key={index}
+                                        initial={{ opacity: 0, x: -12 }}
                                         animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: 0.2 + index * 0.08 }}
-                                        className="p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-all hover:shadow-sm"
-                                        style={{ background: `${stat.color}05` }}
+                                        transition={{ delay: 0.1 + index * 0.04 }}
+                                        style={{
+                                            padding: '12px 14px',
+                                            border: '1px solid var(--sand-400)',
+                                            background: 'var(--parchment-50)',
+                                        }}
                                     >
-                                        <div className="flex justify-between mb-2 items-center">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xl">{stat.icon}</span>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <div className="flex items-center gap-3">
+                                                <span style={{
+                                                    width: 38, height: 38, fontSize: '1.4rem',
+                                                    border: '1px solid var(--sand-400)',
+                                                    background: 'var(--parchment-200)',
+                                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                }}>{stat.icon}</span>
                                                 <div>
-                                                    <span className="font-bold text-gray-700 block">{stat.name}</span>
+                                                    <div style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.2rem', lineHeight: 1 }}>{stat.name}</div>
                                                     {stat.category && (
-                                                        <span className="text-[10px] text-gray-400">{stat.category}</span>
+                                                        <div className="ui-eyebrow" style={{ marginTop: 4 }}>{stat.category}</div>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="text-left">
-                                                <span className="text-lg font-bold" style={{ color: stat.color }}>{stat.value}%</span>
-                                                <span className="text-xs text-gray-400 block">{stat.count} مرة</span>
+                                            <div style={{ textAlign: 'left' }}>
+                                                <div className="font-num" style={{ color: stat.color, fontWeight: 700, fontSize: '1.2rem' }}>{stat.value}%</div>
+                                                <div className="font-num" style={{ color: 'var(--ink-500)', fontSize: '0.72rem' }}>{stat.count} مرة</div>
                                             </div>
                                         </div>
-                                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                                        <div className="ui-bar" style={{ height: 8 }}>
                                             <motion.div
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${stat.value}%` }}
-                                                transition={{ duration: 0.8, delay: 0.3 + index * 0.1, ease: 'easeOut' }}
-                                                className="h-full rounded-full"
+                                                transition={{ duration: 0.6, delay: 0.2 + index * 0.05, ease: 'easeOut' }}
+                                                className="ui-bar-fill"
                                                 style={{ background: stat.color }}
                                             />
                                         </div>
-                                        {/* Action buttons */}
-                                        <div className="flex gap-2 mt-2">
-                                            <button 
-                                                onClick={() => { onClose(); navigate('/lessons'); }}
-                                                className="text-[11px] px-2 py-1 rounded-lg bg-blue-50 text-blue-600 border-none cursor-pointer hover:bg-blue-100 transition-colors flex items-center gap-1"
-                                            >
-                                                <BookOpen size={10} /> شرح الدرس
+                                        <div className="flex gap-2 mt-3">
+                                            <button onClick={() => { onClose(); router.push('/lessons'); }}
+                                                className="ui-btn ui-btn--ghost" style={{ padding: '6px 10px', fontSize: '0.72rem' }} type="button">
+                                                <BookOpen size={11} /> شرح
                                             </button>
-                                            <button 
-                                                onClick={() => { onClose(); navigate(`/practical-quiz/${stat.error_type}`); }}
-                                                className="text-[11px] px-2 py-1 rounded-lg bg-green-50 text-green-600 border-none cursor-pointer hover:bg-green-100 transition-colors flex items-center gap-1"
-                                            >
-                                                <Mic size={10} /> تدريب عملي
+                                            <button onClick={() => { onClose(); router.push(`/practical-quiz/${stat.error_type}`); }}
+                                                className="ui-btn ui-btn--primary" style={{ padding: '6px 10px', fontSize: '0.72rem' }} type="button">
+                                                <Mic size={11} /> تدريب
                                             </button>
                                         </div>
                                     </motion.div>
-                                ))
-                            ) : (
-                                <div className="text-center py-10 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                                    <Activity size={32} className="text-gray-300 mx-auto mb-2" />
-                                    <p className="text-gray-500 font-amiri">لا توجد أخطاء مسجلة حالياً. استمر في التلاوة!</p>
-                                </div>
+                                )) : (
+                                    <div style={{ textAlign: 'center', padding: '40px 14px', border: '1px dashed var(--sand-400)' }}>
+                                        <Activity size={28} style={{ color: 'var(--ink-500)', margin: '0 auto 10px' }} />
+                                        <p style={{ color: 'var(--ink-500)', fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.2rem' }}>
+                                          لا توجد أخطاء مسجلة. استمر في التلاوة!
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {topMistake && (
+                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+                                    className="ui-panel ui-panel--emerald"
+                                    style={{ marginTop: 20, display: 'flex', gap: 12, alignItems: 'center' }}
+                                >
+                                    <Activity size={20} color="var(--brass-500)" style={{ flexShrink: 0 }} />
+                                    <div>
+                                        <strong style={{ display: 'block', color: 'var(--brass-500)', fontFamily: 'Share Tech Mono, monospace', fontSize: '0.72rem', letterSpacing: '0.18em', marginBottom: 4 }}>
+                                          AI HINT
+                                        </strong>
+                                        <span style={{ fontSize: '0.92rem' }}>
+                                          ركّز على تمارين "{topMistake.name}" ({topMistake.value}% من أخطائك).
+                                        </span>
+                                    </div>
+                                </motion.div>
                             )}
-                        </div>
 
-                        {topMistake && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 15 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.6 }}
-                                className="mt-8 p-4 bg-emerald-50 rounded-xl border border-emerald-200 flex gap-3 items-center"
-                            >
-                                <Activity size={24} color="#10B981" className="shrink-0" />
-                                <div>
-                                    <strong className="block text-emerald-800">نصيحة الذكاء الاصطناعي</strong>
-                                    <span className="text-sm text-emerald-700">
-                                        بناءً على تلاوتك، ننصحك بالتركيز على تمارين "{topMistake.name}" ({topMistake.value}% من أخطائك).
-                                    </span>
-                                </div>
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="mt-4 text-center">
+                                <button
+                                    onClick={() => { onClose(); router.push('/progress'); }}
+                                    className="ui-cta"
+                                    type="button"
+                                >
+                                    عرض لوحة التقدم الكاملة
+                                </button>
                             </motion.div>
-                        )}
-
-                        {/* View full progress button */}
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }} className="mt-4 text-center">
-                            <button
-                                onClick={() => { onClose(); navigate('/progress'); }}
-                                className="px-6 py-2.5 bg-primary text-white rounded-xl border-none cursor-pointer font-bold text-sm hover:shadow-lg transition-shadow"
-                            >
-                                عرض لوحة التقدم الكاملة
-                            </button>
-                        </motion.div>
-
+                        </div>
                     </motion.div>
                 </motion.div>
             )}

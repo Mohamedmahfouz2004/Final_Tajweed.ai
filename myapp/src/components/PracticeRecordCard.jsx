@@ -1,49 +1,41 @@
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Mic, ChevronDown } from 'lucide-react';
+import { Mic, ChevronDown, Search } from 'lucide-react';
 import useAppStore from '../store/useAppStore';
 
-const MUAALEM_API_URL = 'http://localhost:8888';
-
 const PracticeRecordCard = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const surahs = useAppStore(s => s.surahs);
     const fetchSurahs = useAppStore(s => s.fetchSurahs);
-    
-    const { 
-        selectedSurah, setSelectedSurah, 
+
+    const {
+        selectedSurah, setSelectedSurah,
         fromVerse, setFromVerse,
-        toVerse, setToVerse
+        toVerse, setToVerse,
     } = useAppStore();
-    
+
     const [showSurahList, setShowSurahList] = useState(false);
     const [surahSearch, setSurahSearch] = useState('');
     const [maxAya, setMaxAya] = useState(7);
     const surahListRef = useRef(null);
 
-    // Load surahs from API via store
-    useEffect(() => {
-        fetchSurahs();
-    }, []);
+    useEffect(() => { fetchSurahs(); }, []);
 
-    // Update maxAya when surah changes
     useEffect(() => {
         if (selectedSurah && Array.isArray(surahs)) {
             const s = surahs.find(s => s.id == selectedSurah);
             if (s) {
                 const newMax = s.aya_count || 7;
                 setMaxAya(newMax);
-                
-                // Only reset verses if they are currently out of bounds for the new surah
-                // This prevents overriding Voice Assistant settings
                 if (fromVerse > newMax || fromVerse < 1) setFromVerse(1);
                 if (toVerse > newMax || toVerse < 1) setToVerse(newMax);
             }
         }
     }, [selectedSurah, surahs]);
 
-    // Click outside handler for surah list
     useEffect(() => {
         function handleClickOutside(e) {
             if (surahListRef.current && !surahListRef.current.contains(e.target)) {
@@ -55,97 +47,132 @@ const PracticeRecordCard = () => {
     }, []);
 
     const handleStart = () => {
-        if (!selectedSurah) {
-            alert('اختر السورة أولاً');
-            return;
-        }
-        navigate('/live-moshaf');
+        if (!selectedSurah) { alert('اختر السورة أولاً'); return; }
+        router.push('/live-moshaf');
     };
 
-    const surahName = (selectedSurah && Array.isArray(surahs)) 
-        ? surahs.find(s => s.id == selectedSurah)?.name 
+    const surahName = (selectedSurah && Array.isArray(surahs))
+        ? surahs.find(s => s.id == selectedSurah)?.name
         : '';
 
-    return (
-        <div className="font-arabic max-w-5xl mx-auto" dir="rtl">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+    const filtered = Array.isArray(surahs) ? surahs.filter(s => s.name && s.name.includes(surahSearch)) : [];
 
+    return (
+        <div className="max-w-3xl mx-auto" dir="rtl">
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
                 {/* Header */}
-                <div className="text-center mb-8">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(27,94,59,0.1)', border: '1px solid rgba(27,94,59,0.2)' }}>
-                        <Mic size={28} className="text-[#1B5E3B]" />
+                <div className="flex items-center gap-3 mb-6">
+                    <div style={{
+                        width: 56, height: 56, background: 'var(--ink-900)', color: 'var(--brass-500)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 14px 30px -10px rgba(212,175,55,0.5)',
+                    }}>
+                        <Mic size={24} strokeWidth={2.2} />
                     </div>
-                    <h2 className="text-2xl font-amiri font-bold text-[#2C1810] mb-2">سجّل تلاوتك</h2>
-                    <p className="text-[#6B5D4F] text-sm">اختر السورة والآيات ثم ابدأ التسجيل في وضع التسميع</p>
+                    <div>
+                        <h2 className="ui-title" style={{ fontSize: '2.2rem' }}>سَجِّل تلاوتك</h2>
+                        <span className="ui-eyebrow" style={{ marginTop: 4 }}>
+                          STUDIO &nbsp;//&nbsp; CONFIGURE SESSION
+                        </span>
+                    </div>
                 </div>
 
                 {/* Selection Form */}
-                <div className="rounded-2xl p-6 space-y-5" style={{ background: '#FFF9F0', border: '1px solid rgba(184,146,62,0.15)', boxShadow: '0 4px 20px rgba(44,24,16,0.06)' }}>
-
+                <div className="ui-panel" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {/* Surah Selector */}
-                    <div ref={surahListRef} className="space-y-2">
-                        <label className="block text-[#8B6D2E] font-bold text-sm">السورة</label>
-                        <div className="relative">
+                    <div ref={surahListRef}>
+                        <span className="ui-label">السورة</span>
+                        <div style={{ position: 'relative' }}>
                             <button
+                                type="button"
                                 onClick={() => setShowSurahList(!showSurahList)}
-                                className="w-full p-3.5 rounded-xl text-right flex justify-between items-center text-[#2C1810] font-bold text-base transition-all cursor-pointer border-none"
-                                style={{ background: '#FAF5EC', border: '1px solid rgba(184,146,62,0.2)' }}
+                                className="ui-btn"
+                                style={{ width: '100%', justifyContent: 'space-between' }}
                             >
-                                {surahName || 'اختر السورة...'} <ChevronDown size={16} className="text-[#B8923E]" />
+                                <span>{surahName || 'اختر السورة...'}</span>
+                                <ChevronDown size={14} style={{ transform: showSurahList ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
                             </button>
                             {showSurahList && (
-                                <div className="absolute top-full w-full rounded-xl mt-2 max-h-[280px] overflow-y-auto z-20 shadow-xl" style={{ background: '#FFF9F0', border: '1px solid rgba(184,146,62,0.2)' }}>
-                                    <div className="p-2.5" style={{ borderBottom: '1px solid rgba(184,146,62,0.1)' }}>
-                                        <input type="text" placeholder="ابحث عن سورة..." value={surahSearch} onChange={(e) => setSurahSearch(e.target.value)}
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="w-full p-2.5 rounded-lg text-right outline-none text-sm text-[#2C1810] placeholder:text-[#9C8E7C]"
-                                            style={{ background: '#FAF5EC', border: '1px solid rgba(184,146,62,0.15)' }}
+                                <div className="ui-panel" style={{
+                                    position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+                                    padding: 0, zIndex: 30, boxShadow: '0 14px 30px -12px rgba(15,26,13,0.4)',
+                                }}>
+                                    <div style={{ padding: 12, borderBottom: '1px solid var(--sand-400)', position: 'relative' }}>
+                                        <Search size={14} style={{ position: 'absolute', right: 22, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-500)' }} />
+                                        <input
+                                            type="text"
+                                            placeholder="ابحث..."
+                                            value={surahSearch}
+                                            onChange={e => setSurahSearch(e.target.value)}
+                                            onClick={e => e.stopPropagation()}
+                                            className="ui-input"
+                                            style={{ paddingRight: 32, textAlign: 'right' }}
                                         />
                                     </div>
-                                    {Array.isArray(surahs) && surahs.filter(s => s.name && s.name.includes(surahSearch)).map(s => (
-                                        <div key={s.id} onClick={() => { setSelectedSurah(s.id); setShowSurahList(false); setSurahSearch(''); }}
-                                            className="p-3 cursor-pointer hover:bg-[#F5EDE0] transition-colors text-[#2C1810] font-bold text-sm"
-                                            style={{ borderBottom: '1px solid rgba(184,146,62,0.06)' }}>
-                                            <span className="text-[#B8923E] ml-2">{s.id}.</span> {s.name}
-                                        </div>
-                                    ))}
+                                    <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                                        {filtered.map(s => (
+                                            <button
+                                                key={s.id}
+                                                type="button"
+                                                onClick={() => { setSelectedSurah(s.id); setShowSurahList(false); setSurahSearch(''); }}
+                                                style={{
+                                                    width: '100%', padding: '10px 14px',
+                                                    display: 'flex', alignItems: 'center', gap: 10,
+                                                    borderBottom: '1px solid var(--sand-400)',
+                                                    background: 'transparent', cursor: 'pointer',
+                                                    border: 'none', color: 'var(--ink-900)',
+                                                    textAlign: 'right',
+                                                    fontFamily: 'var(--font-ibm), IBM Plex Sans Arabic',
+                                                }}
+                                                onMouseEnter={e => e.currentTarget.style.background = 'var(--parchment-200)'}
+                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                            >
+                                                <span className="font-num" style={{ color: 'var(--brass-700)', fontSize: '0.8rem', width: 28 }}>
+                                                  {String(s.id).padStart(3, '0')}
+                                                </span>
+                                                <span style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.1rem' }}>{s.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>
                     </div>
 
                     {/* Aya Range */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="block text-[#8B6D2E] font-bold text-sm">من الآية</label>
-                            <input type="number" value={fromVerse} min={1} max={maxAya}
-                                onChange={(e) => setFromVerse(Math.max(1, Math.min(maxAya, parseInt(e.target.value) || 1)))}
-                                className="w-full p-3.5 rounded-xl text-center font-bold text-[#2C1810] text-lg outline-none"
-                                style={{ background: '#FAF5EC', border: '1px solid rgba(184,146,62,0.2)' }}
+                    <div className="ui-split">
+                        <div>
+                            <span className="ui-label">من الآية</span>
+                            <input
+                                type="number" value={fromVerse} min={1} max={maxAya}
+                                onChange={e => setFromVerse(Math.max(1, Math.min(maxAya, parseInt(e.target.value) || 1)))}
+                                className="ui-input font-num"
+                                style={{ textAlign: 'center', fontSize: '1.2rem', fontWeight: 600 }}
                             />
                         </div>
-                        <div className="space-y-2">
-                            <label className="block text-[#8B6D2E] font-bold text-sm">إلى الآية</label>
-                            <input type="number" value={toVerse} min={fromVerse} max={maxAya}
-                                onChange={(e) => setToVerse(Math.max(fromVerse, Math.min(maxAya, parseInt(e.target.value) || 1)))}
-                                className="w-full p-3.5 rounded-xl text-center font-bold text-[#2C1810] text-lg outline-none"
-                                style={{ background: '#FAF5EC', border: '1px solid rgba(184,146,62,0.2)' }}
+                        <div>
+                            <span className="ui-label">إلى الآية</span>
+                            <input
+                                type="number" value={toVerse} min={fromVerse} max={maxAya}
+                                onChange={e => setToVerse(Math.max(fromVerse, Math.min(maxAya, parseInt(e.target.value) || 1)))}
+                                className="ui-input font-num"
+                                style={{ textAlign: 'center', fontSize: '1.2rem', fontWeight: 600 }}
                             />
                         </div>
                     </div>
                 </div>
 
                 {/* Start Button */}
-                <motion.button
-                    whileHover={{ scale: 1.02, boxShadow: '0 12px 30px rgba(27,94,59,0.2)' }}
-                    whileTap={{ scale: 0.97 }}
+                <button
+                    type="button"
                     onClick={handleStart}
                     disabled={!selectedSurah}
-                    className="w-full py-4 rounded-2xl font-bold text-lg text-white border-none cursor-pointer shadow-lg transition-all flex items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ background: 'linear-gradient(135deg, #1B5E3B, #2D8A56)' }}
+                    className="ui-cta"
+                    style={{ width: '100%', justifyContent: 'center', marginTop: 18, opacity: selectedSurah ? 1 : 0.4, cursor: selectedSurah ? 'pointer' : 'not-allowed' }}
                 >
-                    <Mic size={22} /> ابدأ التلاوة المباشرة
-                </motion.button>
+                    <Mic size={18} strokeWidth={2.2} />
+                    ابدأ التلاوة المباشرة
+                </button>
             </motion.div>
         </div>
     );

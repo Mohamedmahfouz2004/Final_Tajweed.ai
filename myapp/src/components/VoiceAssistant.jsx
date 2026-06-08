@@ -1,11 +1,13 @@
+'use client';
+
 import React, { useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useRouter, usePathname } from 'next/navigation';
 import { speakArabic, startVoiceCommands, getRouteFromCommand, getPageNameAr } from '../utils/voiceUtils';
 import useAppStore from '../store/useAppStore';
 
 const VoiceAssistant = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
   const showToast = useAppStore(s => s.showToast);
   const isRecording = useAppStore(s => s.isRecording);
   const isPlaying = useAppStore(s => s.isPlaying);
@@ -95,7 +97,7 @@ const VoiceAssistant = () => {
 
     // Navigation (Highest priority - allows breaking out of conversation)
     const route = getRouteFromCommand(t);
-    if (route && route !== location.pathname) {
+    if (route && route !== pathname) {
       convStepRef.current = null; // Reset conversation if navigating away
       
       if (route === '/progress') {
@@ -105,7 +107,7 @@ const VoiceAssistant = () => {
       }
 
       setTimeout(() => {
-        navigate(route);
+        router.push(route);
       }, 500);
       return;
     }
@@ -113,7 +115,7 @@ const VoiceAssistant = () => {
     // --- Conversational Logic ---
     const step = convStepRef.current;
     
-    if (location.pathname === '/practice' && step) {
+    if (pathname === '/practice' && step) {
       if (step === 'ASK_MODE') {
         if (t.includes('سمع') || t.includes('استماع')) {
           convDataRef.current.mode = 'listen';
@@ -197,7 +199,7 @@ const VoiceAssistant = () => {
           } else {
             // Start Live Recitation mode
             setTimeout(() => {
-              navigate('/live-moshaf');
+              router.push('/live-moshaf');
             }, 500);
           }
           convStepRef.current = null;
@@ -243,8 +245,12 @@ const VoiceAssistant = () => {
     }
 
     if (!recognitionRef.current) {
+      // Errors that are environment/permission related — not actionable, silence them
+      const SILENT_ERRORS = new Set(['audio-capture', 'not-allowed', 'no-speech', 'service-not-allowed']);
+
       recognitionRef.current = startVoiceCommands((t) => onCommandRef.current(t), (err) => {
-        console.error("Voice Error:", err);
+        if (SILENT_ERRORS.has(err)) return; // mic unavailable / no permission — expected
+        console.warn("VoiceAssistant unexpected error:", err);
       });
     }
   }, [isRecording, isPlaying]);
@@ -253,11 +259,11 @@ const VoiceAssistant = () => {
 
   useEffect(() => {
     // Prevent double-speaking on mount or strict mode
-    if (lastSpokenPath.current === location.pathname) return;
+    if (lastSpokenPath.current === pathname) return;
     
-    const pageName = getPageNameAr(location.pathname);
+    const pageName = getPageNameAr(pathname);
     
-    if (location.pathname === '/practice') {
+    if (pathname === '/practice') {
       speakArabic(`أنت الآن في ${pageName}. هل تريد سمع التلاوة أم تسميع لتلاوة؟`);
       convStepRef.current = 'ASK_MODE';
     } else {
@@ -265,8 +271,8 @@ const VoiceAssistant = () => {
       convStepRef.current = null; // Reset if leaving practice
     }
     
-    lastSpokenPath.current = location.pathname;
-  }, [location.pathname]);
+    lastSpokenPath.current = pathname;
+  }, [pathname]);
 
   return (
     <div className="fixed bottom-4 left-4 z-[9999] pointer-events-none">

@@ -3,33 +3,16 @@ import { reciters } from '../utils/data';
 import { generateInitialProgress } from '../utils/data';
 import audioService from '../utils/audioService';
 import { SURAH_LIST } from '../utils/surahNames';
+import { API_BASE } from '../utils/apiConfig';
 
 const useAppStore = create((set, get) => ({
-    // --- Auth State ---
-    isLoggedIn: !!localStorage.getItem('tajweed_token'),
-    currentUser: JSON.parse(localStorage.getItem('tajweed_user') || 'null'),
-    loginSuccess: (user, token) => {
-        localStorage.setItem('tajweed_token', token);
-        localStorage.setItem('tajweed_user', JSON.stringify(user));
-        set({ isLoggedIn: true, currentUser: user });
-    },
-    logout: () => {
-        localStorage.removeItem('tajweed_token');
-        localStorage.removeItem('tajweed_user');
-        set({
-            isLoggedIn: false,
-            currentUser: null,
-            userProgress: {
-                badgesEarned: 0,
-                weeklyStats: [],
-                mistakeStats: [],
-                versesPracticed: 0,
-                completedLessons: 0,
-                averageAccuracy: 0,
-                completedLessonsList: []
-            }
-        });
-    },
+    // --- Auth State (synced from Clerk via ClerkStoreBridge) ---
+    isLoggedIn: false,
+    currentUser: null,
+    // Async getter for a fresh Clerk session JWT; set by ClerkStoreBridge.
+    getToken: null,
+    // Opens the Clerk sign-in modal; set by ClerkStoreBridge.
+    requireAuth: () => {},
 
 
     // --- UI State ---
@@ -41,13 +24,14 @@ const useAppStore = create((set, get) => ({
         setTimeout(() => set({ toast: null }), 3000);
     },
 
-    isAuthModalOpen: false,
-    openAuthModal: () => set({ isAuthModalOpen: true }),
-    closeAuthModal: () => set({ isAuthModalOpen: false }),
-
     isMistakesModalOpen: false,
     openMistakesModal: () => set({ isMistakesModalOpen: true }),
     closeMistakesModal: () => set({ isMistakesModalOpen: false }),
+
+    // Session result overlay (shown after a recording session ends)
+    sessionResultOpen: false,
+    openSessionResult: () => set({ sessionResultOpen: true }),
+    closeSessionResult: () => set({ sessionResultOpen: false }),
 
     // --- Lesson State ---
     lessons: [],
@@ -71,7 +55,7 @@ const useAppStore = create((set, get) => ({
     // --- Data Actions ---
     fetchLessons: async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/lessons');
+            const res = await fetch(`${API_BASE}/api/lessons`);
             const data = await res.json();
             if (Array.isArray(data)) {
                 set({ lessons: data });
@@ -82,12 +66,12 @@ const useAppStore = create((set, get) => ({
     },
 
     fetchUserProgress: async () => {
-        const token = localStorage.getItem('tajweed_token');
+        const token = await get().getToken?.();
         if (!token) return;
 
         try {
             console.log('[STORE] Fetching progress summary...');
-            const res = await fetch('http://localhost:5000/api/progress/summary', {
+            const res = await fetch(`${API_BASE}/api/progress/summary`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -112,7 +96,7 @@ const useAppStore = create((set, get) => ({
     fetchSurahs: async () => {
         // We already have a base list from SURAH_LIST, but we can refresh it from Muaalem API
         try {
-            const res = await fetch('http://localhost:8888/api/surahs');
+            const res = await fetch(`${API_BASE}/api/surahs`);
             const data = await res.json();
             if (Array.isArray(data)) {
                 set({ surahs: data.map(s => ({
@@ -127,12 +111,12 @@ const useAppStore = create((set, get) => ({
     },
 
     updateUserProgress: async (lessonId, status, score) => {
-        const token = localStorage.getItem('tajweed_token');
+        const token = await get().getToken?.();
         if (!token) return;
 
         try {
             console.log('[STORE] Updating progress for lesson:', lessonId, { status, score });
-            const res = await fetch('http://localhost:5000/api/progress/update', {
+            const res = await fetch(`${API_BASE}/api/progress/update`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -159,11 +143,11 @@ const useAppStore = create((set, get) => ({
     },
 
     logUserMistake: async (lessonId, errorType, audioUrl, feedback) => {
-        const token = localStorage.getItem('tajweed_token');
+        const token = await get().getToken?.();
         if (!token) return;
 
         try {
-            await fetch('http://localhost:5000/api/progress/log-mistake', {
+            await fetch(`${API_BASE}/api/progress/log-mistake`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -203,14 +187,14 @@ const useAppStore = create((set, get) => ({
     },
 
     saveSessionMistakes: async (mistakesArray) => {
-        const token = localStorage.getItem('tajweed_token');
+        const token = await get().getToken?.();
         if (!token || !mistakesArray || mistakesArray.length === 0) return;
 
         try {
             console.log(`[STORE] Saving batch of ${mistakesArray.length} mistakes at session end.`);
             // Using Promise.all to log all mistakes concurrently
             await Promise.all(mistakesArray.map(m => 
-                fetch('http://localhost:5000/api/progress/log-mistake', {
+                fetch(`${API_BASE}/api/progress/log-mistake`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -235,9 +219,9 @@ const useAppStore = create((set, get) => ({
 
     // --- Admin Actions ---
     addLesson: async (lessonData) => {
-        const token = localStorage.getItem('tajweed_token');
+        const token = await get().getToken?.();
         try {
-            const res = await fetch('http://localhost:5000/api/admin/lessons', {
+            const res = await fetch(`${API_BASE}/api/admin/lessons`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -260,9 +244,9 @@ const useAppStore = create((set, get) => ({
     },
 
     updateLesson: async (id, lessonData) => {
-        const token = localStorage.getItem('tajweed_token');
+        const token = await get().getToken?.();
         try {
-            const res = await fetch(`http://127.0.0.1:5000/api/admin/lessons/${id}`, {
+            const res = await fetch(`${API_BASE}/api/admin/lessons/${id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -287,9 +271,9 @@ const useAppStore = create((set, get) => ({
     },
 
     deleteLesson: async (id) => {
-        const token = localStorage.getItem('tajweed_token');
+        const token = await get().getToken?.();
         try {
-            const res = await fetch(`http://127.0.0.1:5000/api/admin/lessons/${id}`, {
+            const res = await fetch(`${API_BASE}/api/admin/lessons/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -308,9 +292,9 @@ const useAppStore = create((set, get) => ({
 
     // --- Quiz Management ---
     addQuiz: async (lessonId, quizData) => {
-        const token = localStorage.getItem('tajweed_token');
+        const token = await get().getToken?.();
         try {
-            const res = await fetch('http://127.0.0.1:5000/api/admin/quizzes', {
+            const res = await fetch(`${API_BASE}/api/admin/quizzes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ lesson_id: lessonId, ...quizData })
@@ -327,9 +311,9 @@ const useAppStore = create((set, get) => ({
     },
 
     deleteQuiz: async (quizId) => {
-        const token = localStorage.getItem('tajweed_token');
+        const token = await get().getToken?.();
         try {
-            const res = await fetch(`http://127.0.0.1:5000/api/admin/quizzes/${quizId}`, {
+            const res = await fetch(`${API_BASE}/api/admin/quizzes/${quizId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -349,9 +333,9 @@ const useAppStore = create((set, get) => ({
     adminUsers: [],
 
     fetchAdminStats: async () => {
-        const token = localStorage.getItem('tajweed_token');
+        const token = await get().getToken?.();
         try {
-            const res = await fetch('http://127.0.0.1:5000/api/admin/stats', {
+            const res = await fetch(`${API_BASE}/api/admin/stats`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
@@ -364,9 +348,9 @@ const useAppStore = create((set, get) => ({
     },
 
     fetchAdminUsers: async () => {
-        const token = localStorage.getItem('tajweed_token');
+        const token = await get().getToken?.();
         try {
-            const res = await fetch('http://127.0.0.1:5000/api/admin/users', {
+            const res = await fetch(`${API_BASE}/api/admin/users`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
@@ -379,9 +363,9 @@ const useAppStore = create((set, get) => ({
     },
 
     updateUserRole: async (userId, role) => {
-        const token = localStorage.getItem('tajweed_token');
+        const token = await get().getToken?.();
         try {
-            const res = await fetch(`http://127.0.0.1:5000/api/admin/users/${userId}/role`, {
+            const res = await fetch(`${API_BASE}/api/admin/users/${userId}/role`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ role })
@@ -401,9 +385,9 @@ const useAppStore = create((set, get) => ({
     },
 
     deleteUser: async (userId) => {
-        const token = localStorage.getItem('tajweed_token');
+        const token = await get().getToken?.();
         try {
-            const res = await fetch(`http://127.0.0.1:5000/api/admin/users/${userId}`, {
+            const res = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -424,6 +408,33 @@ const useAppStore = create((set, get) => ({
     // --- Practice State ---
     selectedSurah: '',
     setSelectedSurah: (val) => set({ selectedSurah: val }),
+
+    // --- Last session (resume hook for the Mastery Studio home) ---
+    lastSession: (() => {
+        if (typeof window === 'undefined') return null;
+        try {
+            const raw = localStorage.getItem('tajweed_last_session');
+            return raw ? JSON.parse(raw) : null;
+        } catch { return null; }
+    })(),
+    setLastSession: (session) => {
+        if (typeof window !== 'undefined') {
+            try {
+                if (session) localStorage.setItem('tajweed_last_session', JSON.stringify(session));
+                else localStorage.removeItem('tajweed_last_session');
+            } catch {}
+        }
+        set({ lastSession: session });
+    },
+    resumeLastSession: () => {
+        const s = get().lastSession;
+        if (!s) return null;
+        if (s.surahId) get().setSelectedSurah(s.surahId);
+        if (s.fromAyah) get().setFromVerse(s.fromAyah);
+        if (s.toAyah)   get().setToVerse(s.toAyah);
+        return s;
+    },
+
     selectedReciter: 1,
     setSelectedReciter: (val) => set({ selectedReciter: val }),
     fromVerse: '',
@@ -473,7 +484,7 @@ const useAppStore = create((set, get) => ({
     
     fetchSessionAnalytics: async (sessionId) => {
         try {
-            const res = await fetch(`http://127.0.0.1:8888/api/session/${sessionId}/analytics`);
+            const res = await fetch(`${API_BASE}/api/session/${sessionId}/analytics`);
             const data = await res.json();
             if (data && !data.error) {
                 set({ analyticsReport: data });
@@ -496,12 +507,15 @@ const useAppStore = create((set, get) => ({
     setShowListenSurahList: (val) => set({ showListenSurahList: val }),
     listenSurahSearch: '',
     setListenSurahSearch: (val) => set({ listenSurahSearch: val }),
+    listenRepeat: false,
+    setListenRepeat: (val) => set({ listenRepeat: val }),
+    toggleListenRepeat: () => set((s) => ({ listenRepeat: !s.listenRepeat })),
 
     // --- Audio Actions (powered by Howler.js via audioService) ---
     playVerse: (verseNum) => {
-        const { selectedReciter, selectedSurah, showToast, handleAudioEnded, isLoggedIn, openAuthModal } = get();
+        const { selectedReciter, selectedSurah, showToast, handleAudioEnded, isLoggedIn, requireAuth } = get();
         if (!isLoggedIn) {
-            openAuthModal();
+            requireAuth();
             return;
         }
         if (!selectedReciter) { showToast('الرجاء اختيار القارئ أولاً'); return; }
@@ -537,10 +551,10 @@ const useAppStore = create((set, get) => ({
     },
 
     handlePlayReference: () => {
-        const { listenSurah, selectedSurah, showToast, currentPlayingAudio, isPlaying, listenFromVerse, surahs, listenToVerse, playVerse, isLoggedIn, openAuthModal } = get();
+        const { listenSurah, selectedSurah, showToast, currentPlayingAudio, isPlaying, listenFromVerse, surahs, listenToVerse, playVerse, isLoggedIn, requireAuth } = get();
 
         if (!isLoggedIn) {
-            openAuthModal();
+            requireAuth();
             return;
         }
 
@@ -573,11 +587,15 @@ const useAppStore = create((set, get) => ({
     },
 
     handleAudioEnded: () => {
-        const { listenToVerse, toVerse, currentVerseIndex, playVerse, showToast } = get();
+        const { listenToVerse, toVerse, fromVerse, listenFromVerse, currentVerseIndex, playVerse, showToast, listenRepeat } = get();
         const endVerse = listenToVerse || toVerse;
         const end = parseInt(endVerse || 999);
         if (currentVerseIndex < end) {
             playVerse(currentVerseIndex + 1);
+        } else if (listenRepeat) {
+            // Loop the selected range from the beginning
+            const start = parseInt(fromVerse || listenFromVerse || 1);
+            playVerse(start);
         } else {
             audioService.stop();
             set({ isPlaying: false, currentPlayingAudio: null });

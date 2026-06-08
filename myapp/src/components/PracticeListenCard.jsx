@@ -1,12 +1,13 @@
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, ChevronDown, SkipBack, SkipForward, Square, BookOpen, Mic } from 'lucide-react';
+import { Play, Pause, ChevronDown, SkipBack, SkipForward, Square, BookOpen, Search } from 'lucide-react';
 import { reciters } from '../utils/data';
 import WaveformVisualizer from './WaveformVisualizer';
 import useAppStore from '../store/useAppStore';
 
-const PracticeListenCard = ({ isActive, onClick, activeViewTab, setActiveViewTab }) => {
-    // Store
+const PracticeListenCard = ({ isActive = true }) => {
     const surahs = useAppStore(s => s.surahs);
     const listenSurah = useAppStore(s => s.listenSurah);
     const setListenSurah = useAppStore(s => s.setListenSurah);
@@ -25,12 +26,10 @@ const PracticeListenCard = ({ isActive, onClick, activeViewTab, setActiveViewTab
     const currentVerseWords = useAppStore(s => s.currentVerseWords);
     const currentVerseIndex = useAppStore(s => s.currentVerseIndex);
 
-    // Local State
     const [showListenSurahList, setShowListenSurahList] = useState(false);
     const [showReciterList, setShowReciterList] = useState(false);
     const [listenSurahSearch, setListenSurahSearch] = useState('');
     const [reciterSearch, setReciterSearch] = useState('');
-
     const listenSurahRef = useRef(null);
     const reciterRef = useRef(null);
 
@@ -39,236 +38,246 @@ const PracticeListenCard = ({ isActive, onClick, activeViewTab, setActiveViewTab
         return surah?.verses_count || 286;
     };
 
-    // Word count fetcher logic (simplified for card)
-    useEffect(() => {
-        // Logic to fetch word counts if needed, but mainly handled by store or main view
-        // Keeping it minimal here as store handles most playback logic
-    }, [listenSurah, listenFromVerse, listenToVerse]);
-
-    // Click outside handler
     useEffect(() => {
         function handleClickOutside(event) {
-            if (listenSurahRef.current && !listenSurahRef.current.contains(event.target)) {
-                setShowListenSurahList(false);
-            }
-            if (reciterRef.current && !reciterRef.current.contains(event.target)) {
-                setShowReciterList(false);
-            }
+            if (listenSurahRef.current && !listenSurahRef.current.contains(event.target)) setShowListenSurahList(false);
+            if (reciterRef.current && !reciterRef.current.contains(event.target)) setShowReciterList(false);
         }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => { document.removeEventListener("mousedown", handleClickOutside); };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const toggleReciterList = (e) => {
-        e.stopPropagation();
-        setShowReciterList(!showReciterList);
-        setShowListenSurahList(false);
-    };
+    const filteredSurahs = surahs.filter(s => s.name_arabic?.includes(listenSurahSearch));
+    const filteredReciters = reciters.filter(r => r.name.includes(reciterSearch));
+
+    if (!isActive) return null;
 
     return (
-        <motion.div
-            layout
-            onClick={onClick}
-            className={`overflow-hidden cursor-pointer relative transition-all duration-500 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] flex flex-col ${isActive ? 'flex-[10]' : 'flex-[1]'}`}
-            style={{
-                background: 'transparent',
-                color: isActive ? 'inherit' : 'white',
-                zIndex: isActive ? 10 : 1
-            }}
-        >
-            {/* Unified Header with View Switcher */}
-            {isActive && setActiveViewTab && (
-                <div className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 px-5 py-3.5 mb-6 shadow-lg flex flex-col md:flex-row justify-between items-center">
-                    <div className="flex items-center gap-3 flex-wrap">
-                        {/* View Switcher (Listen / Record) */}
-                        <div className="flex bg-white/60 backdrop-blur-sm p-1 rounded-xl shadow-md border border-white/80 gap-0.5">
-                            <button
-                                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold text-xs transition-all duration-300 ${activeViewTab === 'listen' ? 'bg-gradient-to-r from-[#D4AF37] to-[#B49428] text-white shadow-md' : 'text-gray-500 hover:text-[#B49428]'}`}
-                                onClick={() => setActiveViewTab('listen')}
-                            >
-                                <Play size={14} className={activeViewTab === 'listen' ? 'fill-current' : ''} /> استمع
-                            </button>
-                            <button
-                                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold text-xs transition-all duration-300 ${activeViewTab === 'record' ? 'bg-gradient-to-r from-[#044D29] to-[#066b3b] text-white shadow-md' : 'text-gray-500 hover:text-[#044D29]'}`}
-                                onClick={() => setActiveViewTab('record')}
-                            >
-                                <Mic size={14} /> سجّل
-                            </button>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3 mt-3 md:mt-0">
-                        <div className="text-right">
-                            <h2 className="text-lg font-bold text-[#D4AF37] font-amiri leading-none mb-0.5">استمع للتلاوة</h2>
-                            <p className="text-[10px] text-amber-700/60 font-bold tracking-widest uppercase">Listen & Learn</p>
-                        </div>
-                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#D4AF37] to-[#B49428] flex items-center justify-center text-white shadow-md">
-                            <Play size={18} className="fill-current" />
-                        </div>
-                    </div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto" dir="rtl">
+            <div className="flex items-center gap-3 mb-6">
+                <div style={{
+                    width: 56, height: 56, background: 'var(--brass-500)', color: 'var(--ink-900)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 14px 30px -12px rgba(15,26,13,0.4)',
+                }}>
+                    <Play size={22} strokeWidth={2.4} />
                 </div>
-            )}
-
-            {/* Collapsed Header */}
-            {!isActive && (
-                <div className="py-3 flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-[#D4AF37] to-[#B49428] rounded-xl px-5 shadow-lg">
-                    <h2 className="text-xl font-bold font-amiri flex items-center gap-3 text-white">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/20 text-white">
-                            <Play size={20} />
-                        </div>
-                        استمع للتلاوة الصحيحة
-                    </h2>
-                    <motion.div animate={{ rotate: 0 }}><ChevronDown className="text-white opacity-80" size={20} /></motion.div>
+                <div>
+                    <h2 className="ui-title" style={{ fontSize: '2.2rem' }}>استمع للتلاوة</h2>
+                    <span className="ui-eyebrow">LISTEN &nbsp;//&nbsp; SELECT &amp; PLAY</span>
                 </div>
-            )}
+            </div>
 
-            {/* Content */}
-            <AnimatePresence>
-                {isActive && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="flex-1 overflow-y-auto"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                            {/* Surah Selector */}
-                            <div ref={listenSurahRef} className="space-y-1.5">
-                                <label className="block text-[#044D29] font-bold text-sm px-1">السورة</label>
-                                <div className="relative">
-                                    <button onClick={() => setShowListenSurahList(!showListenSurahList)} className="w-full p-3 bg-white border border-[#D4AF37]/20 rounded-xl text-right flex justify-between items-center text-[#044D29] font-bold text-base transition-all hover:border-[#D4AF37] shadow-md">
-                                        {listenSurah ? surahs.find(s => s.id === listenSurah)?.name_arabic : 'اختر السورة'} <ChevronDown size={16} className="text-[#D4AF37]" />
-                                    </button>
-                                    {showListenSurahList && (
-                                        <div className="absolute top-full w-full bg-white border border-[#D4AF37]/20 rounded-xl mt-2 max-h-[250px] overflow-y-auto z-20 shadow-xl">
-                                            <div className="p-2.5 border-b border-[#D4AF37]/10"><input type="text" placeholder="بحث..." value={listenSurahSearch} onChange={(e) => setListenSurahSearch(e.target.value)} onClick={(e) => e.stopPropagation()} className="w-full p-2.5 rounded-lg border border-[#D4AF37]/20 text-right focus:border-[#044D29] outline-none bg-gray-50 text-sm" /></div>
-                                            {surahs.filter(s => s.name_arabic.includes(listenSurahSearch)).map(s => (<div key={s.id} onClick={() => { setListenSurah(s.id); setShowListenSurahList(false); setListenSurahSearch(''); setListenFromVerse(1); setListenToVerse(s.verses_count); }} className="p-2.5 cursor-pointer border-b border-[#D4AF37]/10 hover:bg-[#D4AF37]/5 transition-colors text-[#044D29] font-bold text-sm">{s.name_arabic}</div>))}
-                                        </div>
-                                    )}
+            {/* Selection Form */}
+            <div className="ui-panel" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
+
+                {/* Surah Selector */}
+                <div ref={listenSurahRef}>
+                    <span className="ui-label">السورة</span>
+                    <div style={{ position: 'relative' }}>
+                        <button
+                            type="button"
+                            onClick={() => setShowListenSurahList(!showListenSurahList)}
+                            className="ui-btn"
+                            style={{ width: '100%', justifyContent: 'space-between', padding: '10px 14px' }}
+                        >
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {listenSurah ? surahs.find(s => s.id === listenSurah)?.name_arabic : 'اختر السورة'}
+                            </span>
+                            <ChevronDown size={14} style={{ transform: showListenSurahList ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                        </button>
+                        {showListenSurahList && (
+                            <div className="ui-panel" style={{
+                                position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+                                padding: 0, zIndex: 30, boxShadow: '0 14px 30px -12px rgba(15,26,13,0.4)',
+                            }}>
+                                <div style={{ padding: 10, borderBottom: '1px solid var(--sand-400)', position: 'relative' }}>
+                                    <Search size={13} style={{ position: 'absolute', right: 18, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-500)' }} />
+                                    <input type="text" placeholder="بحث..." value={listenSurahSearch}
+                                        onChange={e => setListenSurahSearch(e.target.value)} onClick={e => e.stopPropagation()}
+                                        className="ui-input" style={{ paddingRight: 28, textAlign: 'right' }} />
                                 </div>
-                            </div>
-
-                            {/* From Verse */}
-                            <div className="space-y-1.5">
-                                <label className="block text-[#044D29] font-bold text-sm px-1">من الآية</label>
-                                <input
-                                    type="number"
-                                    value={listenFromVerse}
-                                    min="1"
-                                    max={getMaxVerses(listenSurah)}
-                                    className="w-full p-3 bg-white border border-[#D4AF37]/20 rounded-xl text-center font-bold text-[#044D29] text-base focus:border-[#044D29] outline-none shadow-md"
-                                    onChange={(e) => setListenFromVerse(e.target.value)}
-                                    onBlur={(e) => {
-                                        let v = parseInt(e.target.value);
-                                        const max = getMaxVerses(listenSurah);
-                                        if (isNaN(v) || v < 1) v = 1;
-                                        if (v > max) v = max;
-                                        setListenFromVerse(v);
-                                    }}
-                                />
-                            </div>
-
-                            {/* To Verse */}
-                            <div className="space-y-1.5">
-                                <label className="block text-[#044D29] font-bold text-sm px-1">للآية</label>
-                                <input
-                                    type="number"
-                                    value={listenToVerse}
-                                    min="1"
-                                    max={getMaxVerses(listenSurah)}
-                                    className="w-full p-3 bg-white border border-[#D4AF37]/20 rounded-xl text-center font-bold text-[#044D29] text-base focus:border-[#044D29] outline-none shadow-md"
-                                    onChange={(e) => setListenToVerse(e.target.value)}
-                                    onBlur={(e) => {
-                                        let v = parseInt(e.target.value);
-                                        const max = getMaxVerses(listenSurah);
-                                        if (isNaN(v) || v < 1) v = 1;
-                                        if (v > max) v = max;
-                                        setListenToVerse(v);
-                                    }}
-                                />
-                            </div>
-
-                            {/* Reciter Selector */}
-                            <div ref={reciterRef} className="space-y-1.5">
-                                <label className="block text-[#044D29] font-bold text-sm px-1">القارئ</label>
-                                <div className="relative">
-                                    <button onClick={toggleReciterList} className="w-full p-3 bg-white border border-[#D4AF37]/20 rounded-xl text-right flex justify-between items-center text-[#044D29] font-bold text-base transition-all hover:border-[#D4AF37] shadow-md">
-                                        {selectedReciter ? reciters.find(s => s.id == selectedReciter)?.name : 'اختر القارئ'} <ChevronDown size={16} className="text-[#D4AF37]" />
-                                    </button>
-                                    {showReciterList && (
-                                        <div className="absolute top-full w-full bg-white border border-[#D4AF37]/20 rounded-xl mt-2 max-h-[250px] overflow-y-auto z-20 shadow-xl">
-                                            <div className="p-2.5 border-b border-[#D4AF37]/10"><input type="text" placeholder="بحث..." value={reciterSearch} onChange={(e) => setReciterSearch(e.target.value)} onClick={(e) => e.stopPropagation()} className="w-full p-2.5 rounded-lg border border-[#D4AF37]/20 text-right focus:border-[#044D29] outline-none bg-gray-50 text-sm" /></div>
-                                            {reciters.filter(r => r.name.includes(reciterSearch)).map(s => (<div key={s.id} onClick={() => { setSelectedReciter(s.id); setShowReciterList(false); setReciterSearch(''); }} className="p-2.5 cursor-pointer border-b border-[#D4AF37]/10 hover:bg-[#D4AF37]/5 transition-colors text-[#044D29] font-bold text-sm">{s.name}</div>))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Play Controls */}
-                        <div className="flex items-center justify-center gap-4 mb-8">
-                            {!currentPlayingAudio ? (
-                                <button onClick={handlePlayReference} className="py-3 px-8 rounded-full border-none bg-secondary text-primary font-bold cursor-pointer flex items-center gap-2 text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">
-                                    <Play size={24} /> تشغيل التلاوة
-                                </button>
-                            ) : (
-                                <>
-                                    <button onClick={handlePrevVerse} className="p-3 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 cursor-pointer shadow-sm transition-transform hover:scale-105"><SkipForward size={24} className="rotate-180" /></button>
-                                    <button onClick={handlePlayReference} className="w-16 h-16 rounded-full border-none bg-secondary text-primary flex items-center justify-center cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-105 transition-all">{isPlaying ? <Pause size={32} /> : <Play size={32} />}</button>
-                                    <button onClick={handleNextVerse} className="p-3 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 cursor-pointer shadow-sm transition-transform hover:scale-105"><SkipBack size={24} className="rotate-180" /></button>
-                                    <button onClick={handleStopRecitation} className="p-3 rounded-full border-none bg-red-100 text-red-600 hover:bg-red-200 cursor-pointer shadow-sm transition-transform hover:scale-105"><Square size={24} /></button>
-                                </>
-                            )}
-                        </div>
-
-                        {/* Verse Display */}
-                        <div className="space-y-4">
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.98 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="bg-white/90 backdrop-blur-md border-2 border-[#044D29]/15 rounded-2xl p-8 text-center relative min-h-[200px] flex items-center justify-center flex-col shadow-lg transition-all hover:bg-white"
-                            >
-                                <div className="absolute top-6 right-6 opacity-5">
-                                    <BookOpen size={100} color="#044D29" />
-                                </div>
-
-                                {currentPlayingAudio ? (
-                                    <div className="w-full px-4">
-                                        <p className="font-amiri text-4xl leading-[1.8] text-[#044D29] rtl m-0 drop-shadow-sm relative z-10 transition-all">
-                                            {(currentVerseWords.map(w => w.text_uthmani).join(' ') || `الآية ${currentVerseIndex}`).replace(/[\d٠-٩]+\s*$/, '')}
-                                            <span className="relative inline-flex items-center justify-center w-14 h-14 mx-3 align-middle">
-                                                <span className="absolute text-[#D4AF37] text-5xl leading-none" style={{ marginTop: '-8px' }}>۝</span>
-                                                <span className="relative z-10 text-xl font-bold text-[#044D29] pt-1 font-amiri">
-                                                    {currentVerseIndex.toString().replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d])}
-                                                </span>
+                                <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                                    {filteredSurahs.map(s => (
+                                        <button
+                                            key={s.id} type="button"
+                                            onClick={() => { setListenSurah(s.id); setShowListenSurahList(false); setListenSurahSearch(''); setListenFromVerse(1); setListenToVerse(s.verses_count); }}
+                                            style={{
+                                                width: '100%', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 10,
+                                                borderBottom: '1px solid var(--sand-400)',
+                                                background: 'transparent', cursor: 'pointer', border: 'none',
+                                                color: 'var(--ink-900)', textAlign: 'right',
+                                                fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.05rem',
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--parchment-200)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            <span className="font-num" style={{ color: 'var(--brass-700)', fontSize: '0.74rem', width: 28 }}>
+                                              {String(s.id).padStart(3, '0')}
                                             </span>
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center gap-4">
-                                        <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-                                            <BookOpen size={28} />
-                                        </div>
-                                        <span className="text-[#044D29] text-lg font-bold opacity-60">اختر السورة والآية لبدء الاستماع</span>
-                                    </div>
-                                )}
-                            </motion.div>
+                                            {s.name_arabic}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
-                            {/* Visualizer Container - Transparent */}
-                            {currentPlayingAudio && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="mt-6 px-4"
-                                >
-                                    <WaveformVisualizer isPlaying={isPlaying} />
-                                </motion.div>
-                            )}
-                            <audio className="hidden" />
+                <div>
+                    <span className="ui-label">من الآية</span>
+                    <input
+                        type="number" value={listenFromVerse ?? ''} min="1" max={getMaxVerses(listenSurah)}
+                        className="ui-input font-num"
+                        style={{ textAlign: 'center', fontSize: '1.1rem', fontWeight: 600 }}
+                        onChange={e => setListenFromVerse(e.target.value)}
+                        onBlur={e => {
+                            let v = parseInt(e.target.value);
+                            const max = getMaxVerses(listenSurah);
+                            if (isNaN(v) || v < 1) v = 1;
+                            if (v > max) v = max;
+                            setListenFromVerse(v);
+                        }}
+                    />
+                </div>
+                <div>
+                    <span className="ui-label">للآية</span>
+                    <input
+                        type="number" value={listenToVerse ?? ''} min="1" max={getMaxVerses(listenSurah)}
+                        className="ui-input font-num"
+                        style={{ textAlign: 'center', fontSize: '1.1rem', fontWeight: 600 }}
+                        onChange={e => setListenToVerse(e.target.value)}
+                        onBlur={e => {
+                            let v = parseInt(e.target.value);
+                            const max = getMaxVerses(listenSurah);
+                            if (isNaN(v) || v < 1) v = 1;
+                            if (v > max) v = max;
+                            setListenToVerse(v);
+                        }}
+                    />
+                </div>
+
+                <div ref={reciterRef}>
+                    <span className="ui-label">القارئ</span>
+                    <div style={{ position: 'relative' }}>
+                        <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); setShowReciterList(!showReciterList); setShowListenSurahList(false); }}
+                            className="ui-btn"
+                            style={{ width: '100%', justifyContent: 'space-between', padding: '10px 14px' }}
+                        >
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {selectedReciter ? reciters.find(r => r.id == selectedReciter)?.name : 'اختر القارئ'}
+                            </span>
+                            <ChevronDown size={14} style={{ transform: showReciterList ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                        </button>
+                        {showReciterList && (
+                            <div className="ui-panel" style={{
+                                position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+                                padding: 0, zIndex: 30, boxShadow: '0 14px 30px -12px rgba(15,26,13,0.4)',
+                            }}>
+                                <div style={{ padding: 10, borderBottom: '1px solid var(--sand-400)', position: 'relative' }}>
+                                    <Search size={13} style={{ position: 'absolute', right: 18, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-500)' }} />
+                                    <input type="text" placeholder="بحث..." value={reciterSearch}
+                                        onChange={e => setReciterSearch(e.target.value)} onClick={e => e.stopPropagation()}
+                                        className="ui-input" style={{ paddingRight: 28, textAlign: 'right' }} />
+                                </div>
+                                <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                                    {filteredReciters.map(r => (
+                                        <button
+                                            key={r.id} type="button"
+                                            onClick={() => { setSelectedReciter(r.id); setShowReciterList(false); setReciterSearch(''); }}
+                                            style={{
+                                                width: '100%', padding: '8px 12px',
+                                                borderBottom: '1px solid var(--sand-400)',
+                                                background: 'transparent', cursor: 'pointer', border: 'none',
+                                                color: 'var(--ink-900)', textAlign: 'right',
+                                                fontFamily: 'var(--font-ibm), IBM Plex Sans Arabic', fontSize: '0.92rem',
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--parchment-200)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            {r.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Play Controls */}
+            <div className="flex items-center justify-center gap-3 mb-6">
+                {!currentPlayingAudio ? (
+                    <button onClick={handlePlayReference} className="ui-cta" type="button">
+                        <Play size={18} strokeWidth={2.4} /> تشغيل التلاوة
+                    </button>
+                ) : (
+                    <>
+                        <button onClick={handlePrevVerse} className="ui-btn" type="button" style={{ padding: 12 }}>
+                            <SkipForward size={18} className="rotate-180" />
+                        </button>
+                        <button onClick={handlePlayReference} className="ui-mic" type="button" style={{ width: 64, height: 64 }}>
+                            {isPlaying ? <Pause size={26} strokeWidth={2.4} /> : <Play size={26} strokeWidth={2.4} />}
+                        </button>
+                        <button onClick={handleNextVerse} className="ui-btn" type="button" style={{ padding: 12 }}>
+                            <SkipBack size={18} className="rotate-180" />
+                        </button>
+                        <button onClick={handleStopRecitation} className="ui-btn ui-btn--danger" type="button" style={{ padding: 12 }}>
+                            <Square size={18} />
+                        </button>
+                    </>
+                )}
+            </div>
+
+            {/* Verse Display */}
+            <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="ui-panel"
+                style={{ minHeight: 200, padding: 36, position: 'relative', overflow: 'hidden' }}
+            >
+                <BookOpen size={120} style={{ position: 'absolute', top: 18, right: 24, opacity: 0.04, color: 'var(--ink-900)' }} />
+
+                {currentPlayingAudio ? (
+                    <p style={{
+                        fontFamily: 'Amiri, serif', fontSize: 'clamp(1.6rem, 3.6vw, 2.4rem)',
+                        lineHeight: 2, color: 'var(--ink-900)', textAlign: 'center', position: 'relative', zIndex: 1,
+                    }}>
+                        {(currentVerseWords.map(w => w.text_uthmani).join(' ') || `الآية ${currentVerseIndex}`).replace(/[\d٠-٩]+\s*$/, '')}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 52, height: 52, margin: '0 10px', position: 'relative' }}>
+                            <span style={{ position: 'absolute', color: 'var(--brass-500)', fontSize: '3rem', lineHeight: 1, marginTop: -8 }}>۝</span>
+                            <span className="font-num" style={{ position: 'relative', zIndex: 1, fontWeight: 700, color: 'var(--ink-900)', paddingTop: 2 }}>
+                                {currentVerseIndex.toString().replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d])}
+                            </span>
+                        </span>
+                    </p>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: 12 }}>
+                        <div style={{
+                            width: 56, height: 56, background: 'var(--emerald-700)', color: 'var(--parchment-50)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            border: '1px solid var(--sand-400)',
+                            boxShadow: '0 14px 30px -10px rgba(212,175,55,0.5)',
+                        }}>
+                            <BookOpen size={26} strokeWidth={2.2} />
                         </div>
+                        <span style={{ color: 'var(--ink-700)', fontSize: '1.05rem', fontWeight: 600 }}>
+                          اختر السورة والآية لبدء الاستماع
+                        </span>
+                    </div>
+                )}
+            </motion.div>
+
+            <AnimatePresence>
+                {currentPlayingAudio && (
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-6 ui-panel" style={{ padding: 16 }}>
+                        <WaveformVisualizer isPlaying={isPlaying} />
                     </motion.div>
                 )}
             </AnimatePresence>
+            <audio className="hidden" />
         </motion.div>
     );
 };

@@ -1,97 +1,173 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen } from 'lucide-react';
-import Lottie from 'lottie-react';
-import loadingAnimation from '../assets/lottie/loading.json';
+
+const BOOT_LINES = [
+  'INITIALIZING TAJWEED.AI ENGINE...',
+  'LOADING ARABIC NLP MODELS...',
+  'CALIBRATING VOICE RECOGNITION...',
+  'SYSTEM READY ✓',
+];
+
+function BootText() {
+  const [lines, setLines] = useState([]);
+  useEffect(() => {
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < BOOT_LINES.length) {
+        setLines(prev => [...prev, BOOT_LINES[i]]);
+        i++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 380);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div
+      style={{
+        fontFamily: "'Share Tech Mono', monospace",
+        fontSize: '0.66rem',
+        letterSpacing: '0.1em',
+        color: 'var(--brass-500)',
+        textAlign: 'left',
+        direction: 'ltr',
+        lineHeight: 1.9,
+        minHeight: '5.5em',
+        width: 280,
+      }}
+    >
+      {lines.map((line, i) => (
+        <motion.div key={i} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
+          {'> '}{line}
+        </motion.div>
+      ))}
+    </div>
+  );
+}
 
 const SplashScreen = ({ show }) => (
-    <AnimatePresence>
-        {show && (
+  <AnimatePresence>
+    {show && (
+      <motion.div
+        initial={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.9, ease: 'easeOut' }}
+        className="fixed inset-0 w-screen h-screen flex flex-col items-center justify-center z-[9999]"
+        style={{ background: 'var(--ink-900)' }}
+      >
+        {/* CRT scanline */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.025) 3px, rgba(255,255,255,0.025) 4px)',
+          pointerEvents: 'none', zIndex: 1,
+        }} />
+
+        {/* Brass border frame */}
+        <div style={{
+          position: 'absolute', top: 24, bottom: 24, left: 24, right: 24,
+          border: '2px solid var(--brass-500)', pointerEvents: 'none', zIndex: 1,
+        }} />
+        <div style={{
+          position: 'absolute', top: 32, bottom: 32, left: 32, right: 32,
+          border: '1px dashed rgba(216,185,120,0.35)', pointerEvents: 'none', zIndex: 1,
+        }} />
+
+        {/* Corner markers */}
+        {[
+          { top: 24, left: 24 },
+          { top: 24, right: 24 },
+          { bottom: 24, left: 24 },
+          { bottom: 24, right: 24 },
+        ].map((style, i) => (
+          <div key={i} style={{
+              position: 'absolute', ...style, width: 14, height: 14,
+              background: 'var(--brass-500)', zIndex: 2,
+          }} />
+        ))}
+
+        <div style={{ position: 'relative', zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28 }}>
+          {/* Logo */}
+          <motion.img
+            src="/logo.svg"
+            alt="تجويد.ai"
+            initial={{ scale: 0.7, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            style={{
+              width: 'auto', height: 140,
+              filter: 'drop-shadow(0 14px 30px rgba(200,150,62,0.5))',
+            }}
+          />
+
+          {/* Title */}
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.5 }}
+            style={{ textAlign: 'center' }}
+          >
+            <h1 style={{
+              fontFamily: "var(--font-rakkas), 'Rakkas', cursive",
+              fontSize: '4.5rem',
+              color: 'var(--parchment-50)',
+              lineHeight: 1, margin: 0, letterSpacing: '0.01em', fontWeight: 400,
+            }}>
+              تجويد
+            </h1>
+            <span style={{
+              fontFamily: "'Share Tech Mono', monospace",
+              fontSize: '0.78rem', letterSpacing: '0.42em',
+              color: 'var(--brass-500)',
+              display: 'block', marginTop: 8, textTransform: 'uppercase',
+            }}>
+              . AI
+            </span>
+          </motion.div>
+
+          {/* Boot terminal */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6, duration: 0.5 }}
+            style={{
+              padding: '14px 18px',
+              background: 'var(--ink-900)',
+              border: '2px solid var(--brass-500)',
+              boxShadow: '0 14px 30px -10px rgba(184,150,62,0.5)',
+            }}
+          >
+            <BootText />
+          </motion.div>
+
+          {/* Brutalist loading bar */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.85 }}
+            style={{
+              width: 220, height: 10,
+              background: 'var(--ink-900)',
+              border: '2px solid var(--brass-500)',
+              overflow: 'hidden',
+            }}
+          >
             <motion.div
-                initial={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-                className="fixed inset-0 w-screen h-screen flex flex-col items-center justify-center z-[9999]"
-                style={{ background: 'linear-gradient(135deg, #033520 0%, #044D29 50%, #065F46 100%)' }}
-            >
-                {/* Decorative background pattern */}
-                <div
-                    className="absolute inset-0 opacity-5"
-                    style={{
-                        backgroundImage: 'radial-gradient(circle at 20% 50%, #D4AF37 1px, transparent 1px), radial-gradient(circle at 80% 20%, #D4AF37 1px, transparent 1px), radial-gradient(circle at 60% 80%, #D4AF37 1px, transparent 1px)',
-                        backgroundSize: '60px 60px, 80px 80px, 100px 100px',
-                    }}
-                />
-
-                {/* Spinning Lottie ring behind the icon */}
-                <div className="relative w-[180px] h-[180px] flex items-center justify-center">
-                    <div className="absolute -inset-5">
-                        <Lottie animationData={loadingAnimation} loop={true} style={{ width: 220, height: 220 }} />
-                    </div>
-
-                    {/* Decorative Octagon Shapes behind Icon */}
-                    <motion.div
-                        initial={{ scale: 0, rotate: 45 }}
-                        animate={{ scale: 1, rotate: 45 }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                        className="absolute inset-0 flex items-center justify-center opacity-30"
-                    >
-                        <div className="w-[160px] h-[160px] border-2 border-[#D4AF37] rounded-3xl"></div>
-                    </motion.div>
-
-                    {/* Original spinning golden circle + BookOpen icon */}
-                    <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
-                        className="w-[120px] h-[120px] bg-secondary rounded-full flex items-center justify-center relative z-[2] border-4 border-[#D4AF37]/50"
-                        style={{
-                            boxShadow: '0 0 50px rgba(212, 175, 55, 0.5), 0 0 100px rgba(212, 175, 55, 0.2)',
-                        }}
-                    >
-                        <BookOpen size={64} color="#044D29" />
-                    </motion.div>
-                </div>
-
-                {/* Title */}
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5, duration: 0.7, ease: 'easeOut' }}
-                    className="flex flex-col items-center mt-8 mb-2"
-                >
-                    <h1 className="font-amiri text-7xl text-[#FDFCF5] leading-tight m-0 tracking-wide drop-shadow-[0_4px_10px_rgba(0,0,0,0.3)]">تجويد</h1>
-                    <span className="font-sans text-sm tracking-[0.5em] text-[#D4AF37] uppercase font-bold mt-1" style={{ textShadow: '0 2px 10px rgba(212, 175, 55, 0.2)' }}>Tajweed.ai</span>
-                </motion.div>
-
-                {/* Subtitle */}
-                <motion.p
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8, duration: 0.5 }}
-                    className="text-white/75 font-arabic text-lg tracking-widest"
-                >
-                    ارتقِ بتلاوتك
-                </motion.p>
-
-                {/* Loading bar */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 1, duration: 0.4 }}
-                    className="mt-10 w-40 h-[3px] bg-white/15 rounded overflow-hidden"
-                >
-                    <motion.div
-                        initial={{ width: '0%' }}
-                        animate={{ width: '100%' }}
-                        transition={{ delay: 1.1, duration: 1.3, ease: 'easeInOut' }}
-                        className="h-full rounded"
-                        style={{ background: 'linear-gradient(90deg, #D4AF37, #F5D76E)' }}
-                    />
-                </motion.div>
-            </motion.div>
-        )}
-    </AnimatePresence>
+              initial={{ width: '0%' }}
+              animate={{ width: '100%' }}
+              transition={{ delay: 0.9, duration: 1.4, ease: 'easeInOut' }}
+              style={{
+                height: '100%',
+                background: 'repeating-linear-gradient(45deg, var(--brass-500) 0 6px, var(--brass-700) 6px 12px)',
+              }}
+            />
+          </motion.div>
+        </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
 );
 
 export default SplashScreen;
