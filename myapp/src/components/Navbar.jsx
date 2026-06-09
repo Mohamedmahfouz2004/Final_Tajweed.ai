@@ -33,8 +33,19 @@ const Navbar = () => {
 
   return (
     <nav className="topnav">
-      {/* ── Brand ── */}
-      <Link href="/" className="topnav-brand">
+      {/* ── Mobile Menu Toggle (Visually Right in RTL) ── */}
+      <div className="flex md:hidden flex-1 justify-start order-1">
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setIsMobileMenuOpen(true)}
+          aria-label="Open Menu"
+        >
+          <Menu size={24} />
+        </button>
+      </div>
+
+      {/* ── Brand (Visually Center on mobile, Right on desktop) ── */}
+      <Link href="/" className="topnav-brand order-2 md:order-none flex-[2] md:flex-none justify-center md:justify-start">
         <img src="/logo.svg" alt="تجويد.ai" className="brand-logo" />
         <span className="topnav-brand-title">
           تجويد<span>.ai</span>
@@ -61,10 +72,8 @@ const Navbar = () => {
         })}
       </div>
 
-      {/* ── Right Section (Auth + Mobile Menu Toggle) ── */}
-      <div className="topnav-right">
-        {/* ── Auth ── */}
-        <div className="topnav-auth">
+      {/* ── Auth (Visually Left in RTL) ── */}
+      <div className="topnav-auth order-3 md:order-none flex-1 md:flex-none justify-end">
         <motion.div
           animate={{ opacity: [1, 0.25, 1] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
@@ -88,16 +97,6 @@ const Navbar = () => {
             </button>
           </SignInButton>
         </Show>
-      </div>
-
-        {/* Mobile Menu Toggle */}
-        <button
-          className="mobile-menu-btn flex md:hidden"
-          onClick={() => setIsMobileMenuOpen(true)}
-          aria-label="Open Menu"
-        >
-          <Menu size={24} />
-        </button>
       </div>
 
       {/* ── Mobile Side Drawer ── */}
@@ -218,11 +217,6 @@ const Navbar = () => {
           height: 6px;
           background: var(--emerald-500);
           box-shadow: 0 0 8px var(--emerald-500);
-        }
-        .topnav-right {
-          display: flex;
-          align-items: center;
-          gap: 12px;
         }
         .mobile-menu-btn {
           background: transparent;
