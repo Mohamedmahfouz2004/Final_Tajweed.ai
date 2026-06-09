@@ -42,7 +42,7 @@ const Navbar = () => {
       </Link>
 
       {/* ── Desktop Nav links ── */}
-      <div className="topnav-links hidden-on-mobile">
+      <div className="topnav-links hidden md:flex">
         {navItems.map((item) => {
           const isActive = item.exact
             ? pathname === item.href
@@ -77,7 +77,7 @@ const Navbar = () => {
         </Show>
         <Show when="signed-out">
           <SignUpButton mode="modal">
-            <button className="topnav-auth-btn topnav-auth-btn--logout" type="button">
+            <button className="topnav-auth-btn topnav-auth-btn--logout hidden sm:inline-flex" type="button">
               <span>SIGN&nbsp;UP</span>
             </button>
           </SignUpButton>
@@ -92,7 +92,7 @@ const Navbar = () => {
 
         {/* Mobile Menu Toggle */}
         <button
-          className="mobile-menu-btn"
+          className="mobile-menu-btn flex md:hidden"
           onClick={() => setIsMobileMenuOpen(true)}
           aria-label="Open Menu"
         >
@@ -225,7 +225,6 @@ const Navbar = () => {
           gap: 12px;
         }
         .mobile-menu-btn {
-          display: none;
           background: transparent;
           border: none;
           color: #F0EAD6;
@@ -298,12 +297,6 @@ const Navbar = () => {
           background: rgba(212, 175, 55, 0.15);
           color: #D4AF37;
           border: 1px solid rgba(212, 175, 55, 0.3);
-        }
-
-        @media (max-width: 768px) {
-          .mobile-menu-btn {
-            display: flex;
-          }
         }
       `}</style>
     </nav>

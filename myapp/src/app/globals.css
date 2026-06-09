@@ -432,10 +432,6 @@ label {
     font-size: 1.35rem;
   }
 
-  .hidden-on-mobile {
-    display: none !important;
-  }
-
   .topnav-auth {
     gap: 8px;
   }
