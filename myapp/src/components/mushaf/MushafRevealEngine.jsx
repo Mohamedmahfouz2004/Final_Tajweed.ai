@@ -67,7 +67,7 @@ const MushafRevealEngine = memo(function MushafRevealEngine({
     if (!chars || chars.length === 0) {
         return (
             <div className="flex flex-col h-full">
-                <div className="flex justify-center py-3">
+                <div className="flex justify-center pt-8 pb-4 shrink-0">
                     <MushafModeSelector
                         currentMode={revealMode}
                         onModeChange={onModeChange}
@@ -84,7 +84,7 @@ const MushafRevealEngine = memo(function MushafRevealEngine({
     return (
         <div className="flex flex-col h-full relative">
             {/* ── Mode Selector ── */}
-            <div className="flex justify-center py-3 shrink-0">
+            <div className="flex justify-center pt-8 pb-4 shrink-0">
                 <MushafModeSelector
                     currentMode={revealMode}
                     onModeChange={onModeChange}

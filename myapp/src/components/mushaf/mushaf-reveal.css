@@ -476,11 +476,12 @@
 
     .mr-mode-btn {
         padding: 6px 10px;
-        font-size: 11px;
+        font-size: 12px;
     }
 
+    /* We keep the label visible on mobile now as requested by user */
     .mr-mode-btn .mr-mode-label {
-        display: none;
+        display: inline;
     }
 
     .mr-progress-ring {
