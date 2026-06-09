@@ -113,7 +113,7 @@ const SplashScreen = ({ show }) => (
               fontFamily: 'var(--font-reem-kufi), sans-serif',
               fontWeight: 'bold',
               fontSize: '80px',
-              color: '#044D29',
+              color: '#FFFFFF',
               lineHeight: 1,
             }}>
               تجويد

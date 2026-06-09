@@ -73,7 +73,7 @@ const Navbar = () => {
         >
           <img src="/logo.svg" alt="تجويد.ai" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
           <strong className="flex items-baseline" aria-label="تجويد ai" dir="rtl" style={{ gap: '4px', flexDirection: 'row' }}>
-            <span style={{ fontFamily: 'var(--font-reem-kufi), sans-serif', fontWeight: 'bold', fontSize: '24px', color: '#044D29' }}>تجويد</span>
+            <span style={{ fontFamily: 'var(--font-reem-kufi), sans-serif', fontWeight: 'bold', fontSize: '24px', color: '#FFFFFF' }}>تجويد</span>
             <span style={{ fontFamily: 'var(--font-inter), sans-serif', fontWeight: 'bold', fontSize: '24px', color: '#B8923E', position: 'relative', top: '2px', marginLeft: '-2px' }}>.ai</span>
           </strong>
         </Link>
@@ -244,7 +244,7 @@ const Navbar = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <img src="/logo.svg" alt="" style={{ height: '28px' }} />
                   <strong className="flex items-baseline" aria-label="تجويد ai" dir="rtl" style={{ gap: '4px', flexDirection: 'row' }}>
-                    <span style={{ fontFamily: 'var(--font-reem-kufi), sans-serif', fontWeight: 'bold', fontSize: '24px', color: '#044D29' }}>تجويد</span>
+                    <span style={{ fontFamily: 'var(--font-reem-kufi), sans-serif', fontWeight: 'bold', fontSize: '24px', color: '#FFFFFF' }}>تجويد</span>
                     <span style={{ fontFamily: 'var(--font-inter), sans-serif', fontWeight: 'bold', fontSize: '24px', color: '#B8923E', position: 'relative', top: '2px', marginLeft: '-2px' }}>.ai</span>
                   </strong>
                 </div>
