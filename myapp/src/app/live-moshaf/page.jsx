@@ -119,6 +119,7 @@ const LiveMoshafView = () => {
     const [selectedError, setSelectedError] = useState(null);
     const [revealMode, setRevealMode] = useState(REVEAL_MODES.FULL);
     const [isMounted, setIsMounted] = useState(false);
+    const [connectionError, setConnectionError] = useState(null);
 
     useEffect(() => {
         setIsMounted(true);
@@ -242,6 +243,7 @@ const LiveMoshafView = () => {
 
         ws.onopen = () => {
             setWsConnected(true);
+            setConnectionError(null);
             console.log('✅ WebSocket connected to Muaalem server');
             handleStart(ws);
         };
@@ -384,10 +386,15 @@ const LiveMoshafView = () => {
             }
         };
 
-        ws.onclose = () => setWsConnected(false);
-        ws.onerror = () => {
+        ws.onclose = (e) => {
             setWsConnected(false);
-            // Removed connection error toast
+            if (!e.wasClean && !wsConnected) {
+                setConnectionError("تعذر الاتصال بخادم الذكاء الاصطناعي. يرجى التأكد من تشغيله.");
+            }
+        };
+        ws.onerror = (e) => {
+            setWsConnected(false);
+            setConnectionError("تعذر الاتصال بخادم الذكاء الاصطناعي. يرجى التأكد من تشغيله.");
         };
 
         wsRef.current = ws;
@@ -526,8 +533,26 @@ const LiveMoshafView = () => {
                     <div className="flex-1 flex flex-col overflow-hidden p-4 md:p-8">
                         {!displayUthmani && !uthmaniRef ? (
                             <div className="flex flex-col items-center justify-center min-h-[400px] text-[var(--brass-400)]">
-                                <Activity size={32} className="animate-pulse mb-4" />
-                                <p className="font-bold">جاري تجهيز الآيات...</p>
+                                {connectionError ? (
+                                    <>
+                                        <div className="text-red-500 mb-4 bg-red-50 p-4 rounded-full">
+                                            <X size={32} />
+                                        </div>
+                                        <p className="font-bold text-red-600 mb-2">خطأ في الاتصال</p>
+                                        <p className="text-sm text-center text-red-500/80">{connectionError}</p>
+                                        <button 
+                                            onClick={() => { setConnectionError(null); connectWs(); }}
+                                            className="mt-6 px-6 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl transition-colors font-bold text-sm border-none cursor-pointer"
+                                        >
+                                            إعادة المحاولة
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Activity size={32} className="animate-pulse mb-4" />
+                                        <p className="font-bold">جاري تجهيز الآيات...</p>
+                                    </>
+                                )}
                             </div>
                         ) : (
                             <div className="flex flex-col w-full h-full">

@@ -63,7 +63,7 @@ const PracticeRecordCard = () => {
         ? surahs.filter(s => {
             const n = nameOf(s);
             return n.includes(surahSearch) || String(s.id).includes(surahSearch);
-          })
+        })
         : [];
 
     return (
@@ -81,7 +81,7 @@ const PracticeRecordCard = () => {
                     <div>
                         <h2 className="ui-title" style={{ fontSize: '2.2rem' }}>سَجِّل تلاوتك</h2>
                         <span className="ui-eyebrow" style={{ marginTop: 4 }}>
-                          STUDIO &nbsp;//&nbsp; CONFIGURE SESSION
+                            STUDIO &nbsp;//&nbsp; CONFIGURE SESSION
                         </span>
                     </div>
                 </div>
@@ -137,7 +137,7 @@ const PracticeRecordCard = () => {
                                                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                             >
                                                 <span className="font-num" style={{ color: 'var(--brass-700)', fontSize: '0.8rem', width: 28 }}>
-                                                  {String(s.id).padStart(3, '0')}
+                                                    {String(s.id).padStart(3, '0')}
                                                 </span>
                                                 <span style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.1rem' }}>{nameOf(s)}</span>
                                             </button>
