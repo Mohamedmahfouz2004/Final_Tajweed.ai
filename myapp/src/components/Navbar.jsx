@@ -31,12 +31,12 @@ const Navbar = () => {
   if (isAdminRoute) return null;
 
   const navItems = [
-    { href: '/',         label: 'HOME',     icon: LayoutDashboard, exact: true },
-    { href: '/listen',   label: 'LISTEN',   icon: Headphones },
-    { href: '/practice', label: 'PRACTICE', icon: Mic },
-    { href: '/lessons',  label: 'LESSONS',  icon: GraduationCap },
-    { href: '/progress', label: 'STATS',    icon: BarChart3 },
-    { href: '/tafseer',  label: 'TAFSEER',  icon: BookMarked },
+    { href: '/',         label: 'الرئيسية',     icon: LayoutDashboard, exact: true },
+    { href: '/listen',   label: 'استماع',   icon: Headphones },
+    { href: '/practice', label: 'تلاوة', icon: Mic },
+    { href: '/lessons',  label: 'دروس',  icon: GraduationCap },
+    { href: '/progress', label: 'إحصائيات',    icon: BarChart3 },
+    { href: '/tafseer',  label: 'تفسير',  icon: BookMarked },
   ];
 
   return (
