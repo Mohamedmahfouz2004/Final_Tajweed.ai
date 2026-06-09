@@ -16,7 +16,6 @@ const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(false);
 
-  // Detect mobile vs desktop
   React.useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768);
     check();
@@ -24,7 +23,6 @@ const Navbar = () => {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Close drawer on route change
   React.useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
@@ -42,98 +40,154 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="topnav">
+    <>
+      {/* ═══════════ TOP NAVBAR ═══════════ */}
+      <nav className="topnav">
 
-      {/* ══ MOBILE: Hamburger button (right side in RTL) ══ */}
-      {isMobile && (
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start', order: 1 }}>
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            aria-label="Open Menu"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#F0EAD6',
-              cursor: 'pointer',
-              padding: '6px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Menu size={26} />
-          </button>
-        </div>
-      )}
-
-      {/* ══ Brand — center on mobile, left on desktop ══ */}
-      <Link
-        href="/"
-        className="topnav-brand"
-        style={isMobile ? { flex: 2, justifyContent: 'center', order: 2 } : {}}
-      >
-        <img src="/logo.svg" alt="تجويد.ai" className="brand-logo" />
-        <span className="topnav-brand-title">
-          تجويد<span>.ai</span>
-        </span>
-      </Link>
-
-      {/* ══ DESKTOP ONLY: Nav links ══ */}
-      {!isMobile && (
-        <div className="topnav-links">
-          {navItems.map((item) => {
-            const isActive = item.exact
-              ? pathname === item.href
-              : pathname?.startsWith(item.href);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`topnav-item ${isActive ? 'active' : ''}`}
-              >
-                <Icon size={13} strokeWidth={isActive ? 2.4 : 1.8} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ══ Auth — right side on desktop, left in RTL mobile ══ */}
-      <div
-        className="topnav-auth"
-        style={isMobile ? { flex: 1, justifyContent: 'flex-end', order: 3 } : {}}
-      >
-        <motion.div
-          animate={{ opacity: [1, 0.25, 1] }}
-          transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-          className="status-dot"
-          aria-hidden
-        />
-
-        <Show when="signed-in">
-          <UserButton afterSignOutUrl="/" />
-        </Show>
-        <Show when="signed-out">
-          {!isMobile && (
-            <SignUpButton mode="modal">
-              <button className="topnav-auth-btn topnav-auth-btn--logout" type="button">
-                <span>SIGN&nbsp;UP</span>
-              </button>
-            </SignUpButton>
-          )}
-          <SignInButton mode="modal">
-            <button className="topnav-auth-btn topnav-auth-btn--login" type="button">
-              <LogIn size={13} />
-              {!isMobile && <span>LOG&nbsp;IN</span>}
+        {/* Mobile: Hamburger */}
+        {isMobile && (
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start', order: 1 }}>
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              aria-label="Open Menu"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#F0EAD6',
+                cursor: 'pointer',
+                padding: '6px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Menu size={26} />
             </button>
-          </SignInButton>
-        </Show>
-      </div>
+          </div>
+        )}
 
-      {/* ══════════════════════════════════════════════
-          MOBILE SIDE DRAWER
-      ══════════════════════════════════════════════ */}
+        {/* Brand */}
+        <Link
+          href="/"
+          className="topnav-brand"
+          style={isMobile ? { flex: 2, justifyContent: 'center', order: 2 } : {}}
+        >
+          <img src="/logo.svg" alt="تجويد.ai" className="brand-logo" />
+          <span className="topnav-brand-title">
+            تجويد<span>.ai</span>
+          </span>
+        </Link>
+
+        {/* Desktop: Nav links */}
+        {!isMobile && (
+          <div className="topnav-links">
+            {navItems.map((item) => {
+              const isActive = item.exact
+                ? pathname === item.href
+                : pathname?.startsWith(item.href);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`topnav-item ${isActive ? 'active' : ''}`}
+                >
+                  <Icon size={13} strokeWidth={isActive ? 2.4 : 1.8} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Auth */}
+        <div
+          className="topnav-auth"
+          style={isMobile ? { flex: 1, justifyContent: 'flex-end', order: 3 } : {}}
+        >
+          <motion.div
+            animate={{ opacity: [1, 0.25, 1] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }}
+            aria-hidden
+          />
+
+          <Show when="signed-in">
+            <UserButton afterSignOutUrl="/" />
+          </Show>
+          <Show when="signed-out">
+            {!isMobile && (
+              <SignUpButton mode="modal">
+                <button className="topnav-auth-btn topnav-auth-btn--logout" type="button">
+                  <span>SIGN&nbsp;UP</span>
+                </button>
+              </SignUpButton>
+            )}
+            <SignInButton mode="modal">
+              <button className="topnav-auth-btn topnav-auth-btn--login" type="button">
+                <LogIn size={13} />
+                {!isMobile && <span>LOG&nbsp;IN</span>}
+              </button>
+            </SignInButton>
+          </Show>
+        </div>
+
+        <style jsx>{`
+          .brand-logo {
+            height: 40px;
+            width: auto;
+            display: block;
+            flex-shrink: 0;
+            filter: drop-shadow(0 4px 10px rgba(200, 150, 62, 0.45));
+            transition: transform 0.18s ease, filter 0.18s ease;
+          }
+          @media (max-width: 768px) {
+            .brand-logo { height: 28px; }
+          }
+          .topnav-brand:hover .brand-logo {
+            transform: translateY(-1px) scale(1.03);
+            filter: drop-shadow(0 7px 16px rgba(200, 150, 62, 0.6));
+          }
+          .topnav-auth-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.72rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            font-weight: 600;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.16s ease;
+            padding: 8px 14px;
+          }
+          .topnav-auth-btn--logout {
+            background: transparent;
+            border: 1px solid rgba(245,239,227,0.3);
+            color: rgba(245,239,227,0.85);
+          }
+          .topnav-auth-btn--logout:hover {
+            border-color: #D4AF37;
+            color: #D4AF37;
+          }
+          .topnav-auth-btn--login {
+            background: linear-gradient(135deg, #D4AF37 0%, #F1E6CA 100%);
+            border: 1px solid transparent;
+            color: #1F2A24;
+            box-shadow: 0 6px 16px -6px rgba(212, 175, 55, 0.7);
+          }
+          .topnav-auth-btn--login:hover {
+            box-shadow: 0 9px 20px -6px rgba(212, 175, 55, 0.85);
+            transform: translateY(-1px);
+          }
+        `}</style>
+      </nav>
+
+      {/* ═══════════════════════════════════════════
+          MOBILE DRAWER — OUTSIDE <nav> because
+          .topnav has CSS animation which creates a
+          containing block that clips fixed children
+      ═══════════════════════════════════════════ */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <>
@@ -210,7 +264,6 @@ const Navbar = () => {
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    transition: 'all 0.3s ease',
                   }}
                 >
                   <X size={22} />
@@ -257,7 +310,6 @@ const Navbar = () => {
                           textDecoration: 'none',
                           background: isActive ? 'rgba(212,175,55,0.12)' : 'transparent',
                           border: isActive ? '1px solid rgba(212,175,55,0.2)' : '1px solid transparent',
-                          transition: 'all 0.25s ease',
                         }}
                       >
                         <div style={{
@@ -295,66 +347,7 @@ const Navbar = () => {
           </>
         )}
       </AnimatePresence>
-
-      <style jsx>{`
-        .brand-logo {
-          height: 40px;
-          width: auto;
-          display: block;
-          flex-shrink: 0;
-          filter: drop-shadow(0 4px 10px rgba(200, 150, 62, 0.45));
-          transition: transform 0.18s ease, filter 0.18s ease;
-        }
-        @media (max-width: 768px) {
-          .brand-logo { height: 28px; }
-        }
-        .topnav-brand:hover .brand-logo {
-          transform: translateY(-1px) scale(1.03);
-          filter: drop-shadow(0 7px 16px rgba(200, 150, 62, 0.6));
-        }
-
-        .topnav-auth-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          font-family: 'Share Tech Mono', monospace;
-          font-size: 0.72rem;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          font-weight: 600;
-          border-radius: 999px;
-          cursor: pointer;
-          transition: all 0.16s ease;
-          padding: 8px 14px;
-        }
-        .topnav-auth-btn--logout {
-          background: transparent;
-          border: 1px solid rgba(245,239,227,0.3);
-          color: rgba(245,239,227,0.85);
-        }
-        .topnav-auth-btn--logout:hover {
-          border-color: #D4AF37;
-          color: #D4AF37;
-        }
-        .topnav-auth-btn--login {
-          background: linear-gradient(135deg, #D4AF37 0%, #F1E6CA 100%);
-          border: 1px solid transparent;
-          color: #1F2A24;
-          box-shadow: 0 6px 16px -6px rgba(212, 175, 55, 0.7);
-        }
-        .topnav-auth-btn--login:hover {
-          box-shadow: 0 9px 20px -6px rgba(212, 175, 55, 0.85);
-          transform: translateY(-1px);
-        }
-        .status-dot {
-          width: 6px;
-          height: 6px;
-          background: #10B981;
-          box-shadow: 0 0 8px #10B981;
-          border-radius: 50%;
-        }
-      `}</style>
-    </nav>
+    </>
   );
 };
 
