@@ -22,7 +22,6 @@ function TafseerView() {
     const [selectedSura, setSelectedSura] = useState(initialSura);
     const [fromAyah, setFromAyah] = useState(initialFrom);
     const [toAyah, setToAyah] = useState(initialTo);
-    const [ayahCount, setAyahCount] = useState(7);
     const [verses, setVerses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [surahSearch, setSurahSearch] = useState('');
@@ -35,25 +34,18 @@ function TafseerView() {
     const [loadingTafsir, setLoadingTafsir] = useState(null);
     const hoverTimeoutRef = useRef(null);
 
-    useEffect(() => {
-        if (surahs.length > 0) {
-            const surah = surahs.find(s => s.id === selectedSura);
-            if (surah) {
-                setAyahCount(surah.verses_count);
-                if (!initialTo || selectedSura !== initialSura) setToAyah(surah.verses_count);
-                if (fromAyah > surah.verses_count) setFromAyah(1);
-            }
-        }
-    }, [selectedSura, surahs]);
+    // Derive the selected surah's ayah count rather than mirroring it into state.
+    const ayahCount = surahs.find(s => s.id === selectedSura)?.verses_count || 7;
 
     useEffect(() => {
         if (!selectedSura) return;
-        setLoading(true);
-        setSelectedAyahForTafsir(null);
-        const from = fromAyah || 1;
-        const to = toAyah || ayahCount;
+        // Clamp to the surah bounds so a stale/out-of-range URL param can't break the fetch.
+        const from = Math.min(Math.max(fromAyah || 1, 1), ayahCount);
+        const to = Math.min(toAyah || ayahCount, ayahCount);
 
         (async () => {
+            setLoading(true);
+            setSelectedAyahForTafsir(null);
             try {
                 const res = await fetch(
                     `${QURAN_API}/verses/by_chapter/${selectedSura}?language=ar&words=false&per_page=300&fields=text_uthmani,verse_key`
@@ -266,12 +258,12 @@ function TafseerView() {
                 ) : (
                     <div style={{ textAlign: 'center', lineHeight: 5.4 }}>
                         {selectedSura !== 9 && fromAyah === 1 && (
-                            <p style={{ fontFamily: 'Amiri, serif', fontSize: '1.6rem', color: 'var(--brass-700)', marginBottom: 18, fontWeight: 700 }}>
+                            <p style={{ fontFamily: "var(--font-aref-ruqaa), 'Aref Ruqaa', Amiri, serif", fontSize: '1.7rem', color: 'var(--brass-700)', marginBottom: 18, fontWeight: 700 }}>
                                 بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
                             </p>
                         )}
 
-                        <div style={{ fontFamily: 'Amiri, serif', fontSize: 'clamp(1.5rem, 3vw, 2rem)', color: 'var(--ink-900)' }}>
+                        <div style={{ fontFamily: "var(--font-aref-ruqaa), 'Aref Ruqaa', Amiri, serif", fontSize: 'clamp(1.7rem, 3.4vw, 2.4rem)', color: 'var(--ink-900)' }}>
                             {verses.map((verse) => {
                                 const vKey = verse.verse_key;
                                 const isHovered = hoveredAyah === vKey;
@@ -318,7 +310,7 @@ function TafseerView() {
                                                     <div className="ui-eyebrow" style={{ color: 'var(--brass-500)', marginBottom: 6 }}>
                                                       <BookMarked size={10} style={{ verticalAlign: 'middle', marginInlineEnd: 4 }} /> التفسير الميسّر
                                                     </div>
-                                                    <p style={{ fontFamily: 'var(--font-ibm), IBM Plex Sans Arabic', fontSize: '0.86rem', lineHeight: 1.55 }}>
+                                                    <p style={{ fontFamily: "var(--font-aref-ruqaa), 'Aref Ruqaa', Amiri, serif", fontSize: '1rem', lineHeight: 1.7 }}>
                                                       {tafsirCache[vKey].substring(0, 180)}...
                                                     </p>
                                                 </motion.div>
@@ -355,7 +347,7 @@ function TafseerView() {
                                                                 <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: '0.74rem', letterSpacing: '0.18em', color: 'var(--ink-500)' }}>LOADING ...</span>
                                                             </div>
                                                         ) : (
-                                                            <p style={{ fontFamily: 'var(--font-ibm), IBM Plex Sans Arabic', fontSize: '1rem', lineHeight: 2, color: 'var(--ink-900)' }}>
+                                                            <p style={{ fontFamily: "var(--font-aref-ruqaa), 'Aref Ruqaa', Amiri, serif", fontSize: '1.2rem', lineHeight: 2.1, color: 'var(--ink-900)' }}>
                                                               {tafsirCache[vKey] || 'لا يوجد تفسير متاح.'}
                                                             </p>
                                                         )}

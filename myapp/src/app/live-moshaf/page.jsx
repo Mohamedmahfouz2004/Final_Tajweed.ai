@@ -12,6 +12,8 @@ import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import { WS_BASE } from '../../utils/apiConfig';
 
 const MUAALEM_WS_URL = `${WS_BASE}/ws/stream`;
+// http(s) URL of the model server — used to open the LocalTunnel "Click to Continue" page.
+const MODEL_HTTP_URL = WS_BASE.replace(/^ws/, 'http');
 
 /**
  * Merge annotation chars (from the plain uthmani used for phonetization)
@@ -106,6 +108,7 @@ export default function LiveMoshafPage() {
     const [livePhonemes, setLivePhonemes] = useState("");
     const [liveHtml, setLiveHtml] = useState("");
     const [showDebug, setShowDebug] = useState(false);
+    const [connectFailed, setConnectFailed] = useState(false);
     
     // Refs
     const wsRef = useRef(null);
@@ -130,6 +133,74 @@ export default function LiveMoshafPage() {
         }
     }, [selectedSurah, router]);
 
+    const handleStop = useCallback(() => {
+        setIsRecording(false);
+        if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+        }
+        if (processorRef.current) { try { processorRef.current.disconnect(); } catch { } }
+        if (sourceRef.current) { try { sourceRef.current.disconnect(); } catch { } }
+        if (audioCtxRef.current) { try { audioCtxRef.current.close(); } catch { } }
+        if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); }
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: 'stop' }));
+        }
+    }, [setIsRecording]);
+
+    const handleStart = useCallback(async (socket) => {
+        const activeWs = socket || wsRef.current;
+        if (!activeWs || activeWs.readyState !== WebSocket.OPEN) return;
+
+        // Reset session-specific mistake tracking
+        setSessionMistakes([]);
+
+        activeWs.send(JSON.stringify({
+            type: 'start',
+            surah: parseInt(selectedSurah),
+            from_aya: parseInt(fromVerse),
+            to_aya: parseInt(toVerse),
+            moshaf_settings: moshafSettings || {}
+        }));
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+            });
+            streamRef.current = stream;
+
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            const source = audioCtx.createMediaStreamSource(stream);
+            const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+
+            processor.onaudioprocess = (e) => {
+                if (activeWs?.readyState !== WebSocket.OPEN) return;
+                const samples = e.inputBuffer.getChannelData(0);
+                const buffer = new Float32Array(samples).buffer;
+                activeWs.send(buffer);
+            };
+
+            source.connect(processor);
+            processor.connect(audioCtx.destination);
+
+            audioCtxRef.current = audioCtx;
+            sourceRef.current = source;
+            processorRef.current = processor;
+
+            setIsRecording(true);
+
+            pollIntervalRef.current = setInterval(() => {
+                if (activeWs?.readyState === WebSocket.OPEN) {
+                    activeWs.send(JSON.stringify({ type: 'poll' }));
+                }
+            }, 500);
+
+        } catch (err) {
+            console.error('Microphone error:', err);
+            alert('لم يتم السماح بالوصول للميكروفون');
+        }
+    }, [selectedSurah, fromVerse, toVerse, moshafSettings, setSessionMistakes, setIsRecording]);
+
     // WebSocket connection
     const connectWs = useCallback(() => {
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
@@ -137,14 +208,29 @@ export default function LiveMoshafPage() {
         const ws = new WebSocket(MUAALEM_WS_URL);
         ws.binaryType = 'arraybuffer';
 
+        // If we don't connect within a few seconds, surface the likely cause (tunnel locked / down).
+        const failTimer = setTimeout(() => {
+            if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) setConnectFailed(true);
+        }, 6000);
+
         ws.onopen = () => {
+            clearTimeout(failTimer);
             setWsConnected(true);
+            setConnectFailed(false);
             console.log('✅ WebSocket connected to Muaalem server');
             handleStart(ws);
         };
 
         ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
+            let data;
+            try {
+                data = JSON.parse(event.data);
+            } catch {
+                // LocalTunnel interstitial / non-JSON frame — not a real model message.
+                console.warn('Non-JSON WS frame (LocalTunnel "Click to Continue" page?). Open the model URL once and click Continue.');
+                setConnectFailed(true);
+                return;
+            }
 
             if (data.type === 'started') {
                 setUthmaniRef(data.uthmani);
@@ -235,11 +321,11 @@ export default function LiveMoshafPage() {
             }
         };
 
-        ws.onclose = () => setWsConnected(false);
-        ws.onerror = (err) => console.error('WebSocket error:', err);
+        ws.onclose = () => { clearTimeout(failTimer); setWsConnected(false); };
+        ws.onerror = (err) => { console.error('WebSocket error:', err); setConnectFailed(true); };
 
         wsRef.current = ws;
-    }, [selectedSurah, fromVerse, toVerse, displayUthmani, uthmaniRef, moshafSettings, setSessionMistakes, setCurrentSessionId]);
+    }, [displayUthmani, uthmaniRef, setCurrentSessionId, handleStart, handleStop]);
 
     const fetchUserProgress = useAppStore(s => s.fetchUserProgress);
 
@@ -249,75 +335,7 @@ export default function LiveMoshafPage() {
             handleStop();
             if (wsRef.current) wsRef.current.close();
         };
-    }, [connectWs]);
-
-    const handleStart = async (socket) => {
-        const activeWs = socket || wsRef.current;
-        if (!activeWs || activeWs.readyState !== WebSocket.OPEN) return;
-
-        // Reset session-specific mistake tracking
-        setSessionMistakes([]);
-
-        activeWs.send(JSON.stringify({
-            type: 'start',
-            surah: parseInt(selectedSurah),
-            from_aya: parseInt(fromVerse),
-            to_aya: parseInt(toVerse),
-            moshaf_settings: moshafSettings || {}
-        }));
-
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
-            });
-            streamRef.current = stream;
-
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-            const source = audioCtx.createMediaStreamSource(stream);
-            const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-
-            processor.onaudioprocess = (e) => {
-                if (activeWs?.readyState !== WebSocket.OPEN) return;
-                const samples = e.inputBuffer.getChannelData(0);
-                const buffer = new Float32Array(samples).buffer;
-                activeWs.send(buffer);
-            };
-
-            source.connect(processor);
-            processor.connect(audioCtx.destination);
-
-            audioCtxRef.current = audioCtx;
-            sourceRef.current = source;
-            processorRef.current = processor;
-
-            setIsRecording(true);
-
-            pollIntervalRef.current = setInterval(() => {
-                if (activeWs?.readyState === WebSocket.OPEN) {
-                    activeWs.send(JSON.stringify({ type: 'poll' }));
-                }
-            }, 500);
-
-        } catch (err) {
-            console.error('Microphone error:', err);
-            alert('لم يتم السماح بالوصول للميكروفون');
-        }
-    };
-
-    const handleStop = () => {
-        setIsRecording(false);
-        if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-        }
-        if (processorRef.current) { try { processorRef.current.disconnect(); } catch { } }
-        if (sourceRef.current) { try { sourceRef.current.disconnect(); } catch { } }
-        if (audioCtxRef.current) { try { audioCtxRef.current.close(); } catch { } }
-        if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); }
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ type: 'stop' }));
-        }
-    };
+    }, [connectWs, handleStop]);
 
     const handleExit = () => {
         handleStop();
@@ -367,12 +385,36 @@ export default function LiveMoshafPage() {
                 }}>
                     <div className="flex-1 flex flex-col overflow-hidden p-6 md:p-10">
                         {!displayUthmani && !uthmaniRef ? (
-                            <div className="flex flex-col items-center justify-center min-h-[400px]" style={{ color: 'var(--brass-700)' }}>
-                                <Activity size={28} className="animate-pulse mb-3" />
-                                <p style={{ fontWeight: 700, fontFamily: 'Share Tech Mono, monospace', letterSpacing: '0.18em', fontSize: '0.78rem' }}>
-                                  PREPARING AYAH ...
-                                </p>
-                            </div>
+                            connectFailed ? (
+                                <div className="flex flex-col items-center justify-center min-h-[400px] text-center" style={{ gap: 14 }}>
+                                    <p style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.6rem', color: 'var(--ink-900)' }}>
+                                        تعذّر الاتصال بالنموذج
+                                    </p>
+                                    <p className="ui-sub" style={{ maxWidth: '40ch', marginTop: 0 }}>
+                                        إن كان الخادم يعمل عبر LocalTunnel، افتح رابط النموذج مرة واحدة واضغط
+                                        «Click to Continue»، ثم أعد المحاولة.
+                                    </p>
+                                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+                                        <a href={MODEL_HTTP_URL} target="_blank" rel="noreferrer" className="ui-btn ui-btn--ghost">
+                                            فتح رابط النموذج ↗
+                                        </a>
+                                        <button type="button" className="ui-cta" style={{ padding: '11px 20px' }}
+                                            onClick={() => { setConnectFailed(false); try { wsRef.current?.close(); } catch {} connectWs(); }}>
+                                            إعادة المحاولة
+                                        </button>
+                                    </div>
+                                    <p style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: '0.62rem', color: 'var(--ink-500)', direction: 'ltr', marginTop: 6 }}>
+                                        {MUAALEM_WS_URL}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center min-h-[400px]" style={{ color: 'var(--brass-700)' }}>
+                                    <Activity size={28} className="animate-pulse mb-3" />
+                                    <p style={{ fontWeight: 700, fontFamily: 'Share Tech Mono, monospace', letterSpacing: '0.18em', fontSize: '0.78rem' }}>
+                                      PREPARING AYAH ...
+                                    </p>
+                                </div>
+                            )
                         ) : (
                             <div className="flex flex-col gap-6 w-full h-full overflow-y-auto pr-2">
                                 <UthmaniViewer

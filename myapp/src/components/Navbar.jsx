@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Mic,
   GraduationCap, BarChart3, LogIn, BookMarked,
-  BookOpen, Headphones,
+  Headphones,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Show, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
@@ -19,7 +19,6 @@ const Navbar = () => {
 
   const navItems = [
     { href: '/',         label: 'HOME',     icon: LayoutDashboard, exact: true },
-    { href: '/surahs',   label: 'SURAHS',   icon: BookOpen },
     { href: '/listen',   label: 'LISTEN',   icon: Headphones },
     { href: '/practice', label: 'PRACTICE', icon: Mic },
     { href: '/lessons',  label: 'LESSONS',  icon: GraduationCap },

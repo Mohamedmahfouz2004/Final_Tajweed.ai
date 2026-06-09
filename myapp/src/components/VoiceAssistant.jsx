@@ -85,6 +85,8 @@ const VoiceAssistant = () => {
     return null;
   };
 
+  // Keep the latest command handler in a ref without mutating during render.
+  useEffect(() => {
   onCommandRef.current = (transcript) => {
     const t = transcript.toLowerCase();
     setDebugText(t);
@@ -230,6 +232,7 @@ const VoiceAssistant = () => {
         return;
     }
   };
+  });
 
   useEffect(() => {
     if (isRecording || isPlaying) {

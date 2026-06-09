@@ -3,7 +3,7 @@ import { reciters } from '../utils/data';
 import { generateInitialProgress } from '../utils/data';
 import audioService from '../utils/audioService';
 import { SURAH_LIST } from '../utils/surahNames';
-import { API_BASE } from '../utils/apiConfig';
+import { API_BASE, fetchJsonSafe } from '../utils/apiConfig';
 
 const useAppStore = create((set, get) => ({
     // --- Auth State (synced from Clerk via ClerkStoreBridge) ---
@@ -54,14 +54,9 @@ const useAppStore = create((set, get) => ({
 
     // --- Data Actions ---
     fetchLessons: async () => {
-        try {
-            const res = await fetch(`${API_BASE}/api/lessons`);
-            const data = await res.json();
-            if (Array.isArray(data)) {
-                set({ lessons: data });
-            }
-        } catch (err) {
-            console.error('Failed to fetch lessons:', err);
+        const data = await fetchJsonSafe(`${API_BASE}/api/lessons`);
+        if (Array.isArray(data)) {
+            set({ lessons: data });
         }
     },
 
@@ -69,44 +64,36 @@ const useAppStore = create((set, get) => ({
         const token = await get().getToken?.();
         if (!token) return;
 
-        try {
-            console.log('[STORE] Fetching progress summary...');
-            const res = await fetch(`${API_BASE}/api/progress/summary`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            console.log('[STORE] Progress data received:', data);
-            set({
-                userProgress: {
-                    ...get().userProgress,
-                    totalMistakes: data.mistakes?.reduce((acc, curr) => acc + (curr.count || 0), 0) || 0,
-                    weeklyStats: data.weekly || [],
-                    mistakeStats: data.mistakes || [],
-                    versesPracticed: data.versesPracticed || 0,
-                    completedLessons: data.completedLessons || 0,
-                    averageAccuracy: data.averageAccuracy || 0,
-                    completedLessonsList: data.completedLessonIds || []
-                }
-            });
-        } catch (err) {
-            console.error('Failed to fetch progress:', err);
-        }
+        const data = await fetchJsonSafe(`${API_BASE}/api/progress/summary`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!data) return;
+
+        set({
+            userProgress: {
+                ...get().userProgress,
+                totalMistakes: data.mistakes?.reduce((acc, curr) => acc + (curr.count || 0), 0) || 0,
+                weeklyStats: data.weekly || [],
+                mistakeStats: data.mistakes || [],
+                versesPracticed: data.versesPracticed || 0,
+                completedLessons: data.completedLessons || 0,
+                averageAccuracy: data.averageAccuracy || 0,
+                completedLessonsList: data.completedLessonIds || []
+            }
+        });
     },
 
     fetchSurahs: async () => {
-        // We already have a base list from SURAH_LIST, but we can refresh it from Muaalem API
-        try {
-            const res = await fetch(`${API_BASE}/api/surahs`);
-            const data = await res.json();
-            if (Array.isArray(data)) {
-                set({ surahs: data.map(s => ({
-                    id: parseInt(s.id),
-                    name: s.name,
-                    aya_count: parseInt(s.aya_count)
-                })) });
-            }
-        } catch (err) {
-            console.warn('Muaalem server not reachable for surahs, using local fallback:', err.message);
+        // We already have a base list from SURAH_LIST, but we can refresh it from Muaalem API.
+        const data = await fetchJsonSafe(`${API_BASE}/api/surahs`);
+        if (Array.isArray(data)) {
+            set({ surahs: data.map(s => ({
+                id: parseInt(s.id),
+                name: s.name,
+                name_arabic: s.name,
+                aya_count: parseInt(s.aya_count),
+                verses_count: parseInt(s.aya_count),
+            })) });
         }
     },
 
@@ -483,15 +470,10 @@ const useAppStore = create((set, get) => ({
     setAnalyticsReport: (val) => set({ analyticsReport: val }),
     
     fetchSessionAnalytics: async (sessionId) => {
-        try {
-            const res = await fetch(`${API_BASE}/api/session/${sessionId}/analytics`);
-            const data = await res.json();
-            if (data && !data.error) {
-                set({ analyticsReport: data });
-                return data;
-            }
-        } catch (err) {
-            console.error('Failed to fetch session analytics:', err);
+        const data = await fetchJsonSafe(`${API_BASE}/api/session/${sessionId}/analytics`);
+        if (data && !data.error) {
+            set({ analyticsReport: data });
+            return data;
         }
         return null;
     },
@@ -510,6 +492,10 @@ const useAppStore = create((set, get) => ({
     listenRepeat: false,
     setListenRepeat: (val) => set({ listenRepeat: val }),
     toggleListenRepeat: () => set((s) => ({ listenRepeat: !s.listenRepeat })),
+
+    // Signature of the currently loaded recitation { surah, reciter, from, to }.
+    // Lets handlePlayReference tell a genuine pause/resume from a stale selection.
+    playbackContext: null,
 
     // --- Audio Actions (powered by Howler.js via audioService) ---
     playVerse: (verseNum) => {
@@ -547,42 +533,57 @@ const useAppStore = create((set, get) => ({
 
     handleStopRecitation: () => {
         audioService.stop();
-        set({ isPlaying: false, currentPlayingAudio: null });
+        set({ isPlaying: false, currentPlayingAudio: null, playbackContext: null });
     },
 
     handlePlayReference: () => {
-        const { listenSurah, selectedSurah, showToast, currentPlayingAudio, isPlaying, listenFromVerse, surahs, listenToVerse, playVerse, isLoggedIn, requireAuth } = get();
+        const {
+            listenSurah, selectedSurah, selectedReciter, surahs, showToast,
+            currentPlayingAudio, isPlaying, playbackContext,
+            listenFromVerse, listenToVerse, playVerse, isLoggedIn, requireAuth,
+        } = get();
 
         if (!isLoggedIn) {
             requireAuth();
             return;
         }
 
-        const surahToUse = listenSurah || selectedSurah;
-        if (!surahToUse) { showToast('يرجى تحديد السورة'); return; }
+        const surah = listenSurah || selectedSurah;
+        if (!surah) { showToast('يرجى تحديد السورة'); return; }
 
-        // If already playing, toggle pause/resume
-        if (currentPlayingAudio) {
+        const surahObj = surahs.find(s => s.id === surah);
+        const start = parseInt(listenFromVerse || 1);
+        const end = parseInt(listenToVerse || (surahObj ? surahObj.verses_count : 999));
+
+        if (start > end) {
+            showToast('عفواً.. رقم آية البداية أكبر من النهاية');
+            return;
+        }
+
+        // Only a genuine pause/resume when the loaded audio still matches the
+        // current surah + reciter + range. Any change → start a fresh recitation.
+        const sameSelection =
+            currentPlayingAudio && playbackContext &&
+            playbackContext.surah === surah &&
+            playbackContext.reciter === selectedReciter &&
+            playbackContext.from === start &&
+            playbackContext.to === end;
+
+        if (sameSelection) {
             audioService.togglePlayPause();
             set({ isPlaying: !isPlaying });
             return;
         }
 
-        if (listenSurah && listenSurah !== selectedSurah) {
-            set({ selectedSurah: listenSurah });
-        }
-
-        const start = listenFromVerse || 1;
-        const surahObj = surahs.find(s => s.id === surahToUse);
-        const endVerse = listenToVerse || (surahObj ? surahObj.verses_count : 999);
-
-        set({ fromVerse: start, toVerse: endVerse });
-
-        if (parseInt(start) > parseInt(endVerse)) {
-            showToast('عفواً.. رقم آية البداية أكبر من النهاية');
-            return;
-        }
-
+        // Selection changed (or nothing loaded): stop the old audio, sync the
+        // global selection that playVerse reads from, then play from the start.
+        audioService.stop();
+        set({
+            selectedSurah: surah,
+            fromVerse: start,
+            toVerse: end,
+            playbackContext: { surah, reciter: selectedReciter, from: start, to: end },
+        });
         playVerse(start);
     },
 
@@ -614,8 +615,8 @@ const useAppStore = create((set, get) => ({
     },
 
     handlePrevVerse: () => {
-        const { fromVerse, currentVerseIndex, playVerse, showToast } = get();
-        if (currentVerseIndex > parseInt(fromVerse || 1)) {
+        const { fromVerse, listenFromVerse, currentVerseIndex, playVerse, showToast } = get();
+        if (currentVerseIndex > parseInt(fromVerse || listenFromVerse || 1)) {
             playVerse(currentVerseIndex - 1);
         } else {
             showToast('هذه أول آية في المقطع المحدد');

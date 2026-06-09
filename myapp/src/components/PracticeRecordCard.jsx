@@ -19,22 +19,25 @@ const PracticeRecordCard = () => {
 
     const [showSurahList, setShowSurahList] = useState(false);
     const [surahSearch, setSurahSearch] = useState('');
-    const [maxAya, setMaxAya] = useState(7);
     const surahListRef = useRef(null);
 
-    useEffect(() => { fetchSurahs(); }, []);
+    // Derive the selected surah's ayah count instead of mirroring it into state.
+    const selectedSurahData = (selectedSurah && Array.isArray(surahs))
+        ? surahs.find(s => s.id == selectedSurah)
+        : null;
+    const maxAya = selectedSurahData?.aya_count || selectedSurahData?.verses_count || 7;
 
-    useEffect(() => {
-        if (selectedSurah && Array.isArray(surahs)) {
-            const s = surahs.find(s => s.id == selectedSurah);
-            if (s) {
-                const newMax = s.aya_count || 7;
-                setMaxAya(newMax);
-                if (fromVerse > newMax || fromVerse < 1) setFromVerse(1);
-                if (toVerse > newMax || toVerse < 1) setToVerse(newMax);
-            }
-        }
-    }, [selectedSurah, surahs]);
+    // Clamp the verse range when a new surah is picked (a shorter surah may invalidate it).
+    const selectSurah = (s) => {
+        const newMax = s.aya_count || s.verses_count || 7;
+        setSelectedSurah(s.id);
+        if (fromVerse > newMax || fromVerse < 1) setFromVerse(1);
+        if (toVerse > newMax || toVerse < 1) setToVerse(newMax);
+        setShowSurahList(false);
+        setSurahSearch('');
+    };
+
+    useEffect(() => { fetchSurahs(); }, [fetchSurahs]);
 
     useEffect(() => {
         function handleClickOutside(e) {
@@ -51,11 +54,17 @@ const PracticeRecordCard = () => {
         router.push('/live-moshaf');
     };
 
+    const nameOf = (s) => s?.name_arabic || s?.name || '';
     const surahName = (selectedSurah && Array.isArray(surahs))
-        ? surahs.find(s => s.id == selectedSurah)?.name
+        ? nameOf(surahs.find(s => s.id == selectedSurah))
         : '';
 
-    const filtered = Array.isArray(surahs) ? surahs.filter(s => s.name && s.name.includes(surahSearch)) : [];
+    const filtered = Array.isArray(surahs)
+        ? surahs.filter(s => {
+            const n = nameOf(s);
+            return n.includes(surahSearch) || String(s.id).includes(surahSearch);
+          })
+        : [];
 
     return (
         <div className="max-w-3xl mx-auto" dir="rtl">
@@ -114,7 +123,7 @@ const PracticeRecordCard = () => {
                                             <button
                                                 key={s.id}
                                                 type="button"
-                                                onClick={() => { setSelectedSurah(s.id); setShowSurahList(false); setSurahSearch(''); }}
+                                                onClick={() => selectSurah(s)}
                                                 style={{
                                                     width: '100%', padding: '10px 14px',
                                                     display: 'flex', alignItems: 'center', gap: 10,
@@ -130,7 +139,7 @@ const PracticeRecordCard = () => {
                                                 <span className="font-num" style={{ color: 'var(--brass-700)', fontSize: '0.8rem', width: 28 }}>
                                                   {String(s.id).padStart(3, '0')}
                                                 </span>
-                                                <span style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.1rem' }}>{s.name}</span>
+                                                <span style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.1rem' }}>{nameOf(s)}</span>
                                             </button>
                                         ))}
                                     </div>

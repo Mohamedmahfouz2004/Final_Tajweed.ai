@@ -45,7 +45,7 @@ const Footer = () => (
         </div>
 
         <div className="ui-footer-build">
-          BUILD <span className="font-num">2026</span> // AI-POWERED TAJWEED CORRECTION ENGINE
+          BUILD <span className="font-num">2026</span> {'// AI-POWERED TAJWEED CORRECTION ENGINE'}
         </div>
       </div>
     </div>

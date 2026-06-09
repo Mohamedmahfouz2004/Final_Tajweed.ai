@@ -165,7 +165,7 @@ const MistakesModal = ({ isOpen, onClose }) => {
                                           AI HINT
                                         </strong>
                                         <span style={{ fontSize: '0.92rem' }}>
-                                          ركّز على تمارين "{topMistake.name}" ({topMistake.value}% من أخطائك).
+                                          ركّز على تمارين &quot;{topMistake.name}&quot; ({topMistake.value}% من أخطائك).
                                         </span>
                                     </div>
                                 </motion.div>

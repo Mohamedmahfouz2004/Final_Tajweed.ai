@@ -16,7 +16,7 @@
 .uv-text {
     flex: 1;
     overflow-y: auto;
-    font-family: 'Amiri', 'Traditional Arabic', serif;
+    font-family: var(--font-aref-ruqaa), 'Aref Ruqaa', 'Amiri', 'Traditional Arabic', serif;
     font-size: 32px;
     line-height: 2.4;
     text-align: center;

@@ -58,7 +58,7 @@ function ListenView() {
   const surahRef = useRef(null);
   const reciterRef = useRef(null);
 
-  // Deep-link from the /surahs hub: ?sura=&from=&to=
+  // Optional deep-link via query params: ?sura=&from=&to=
   useEffect(() => {
     const sura = parseInt(searchParams.get('sura'));
     const from = parseInt(searchParams.get('from'));
@@ -78,22 +78,23 @@ function ListenView() {
   // Fetch the selected range so we can render a real mushaf
   useEffect(() => {
     if (!listenSurah) return;
-    setLoading(true);
+    let cancelled = false;
     (async () => {
+      setLoading(true);
       try {
         const res = await fetch(
           `${QURAN_API}/verses/by_chapter/${listenSurah}?language=ar&words=false&per_page=300&fields=text_uthmani,verse_key`
         );
         const data = await res.json();
         const all = data?.verses || [];
-        setVerses(all.filter(v => v.verse_number >= fromV && v.verse_number <= toV));
+        if (!cancelled) setVerses(all.filter(v => v.verse_number >= fromV && v.verse_number <= toV));
       } catch (e) {
         console.error('verse fetch failed', e);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { cancelled = true; };
   }, [listenSurah, fromV, toV]);
 
   useEffect(() => {
@@ -104,6 +105,16 @@ function ListenView() {
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
+
+  // Changing the surah or reciter is a hard content switch: stop the current
+  // recitation immediately so the old audio doesn't keep playing. (Verse-range
+  // changes are handled lazily by handlePlayReference's signature check, so we
+  // don't stop on every keystroke in the range inputs.)
+  const didMountRef = useRef(false);
+  useEffect(() => {
+    if (!didMountRef.current) { didMountRef.current = true; return; }
+    handleStopRecitation();
+  }, [selectedReciter, listenSurah, handleStopRecitation]);
 
   const filteredSurahs = surahs.filter(s =>
     s.name_arabic?.includes(surahSearch) || String(s.id).includes(surahSearch));
@@ -217,57 +228,6 @@ function ListenView() {
         </div>
       </motion.div>
 
-      {/* Surah banner */}
-      {currentSurah && (
-        <motion.div variants={reveal} style={{ textAlign: 'center', marginBottom: 18 }}>
-          <h2 style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: 'clamp(2rem,5vw,2.8rem)', lineHeight: 1, color: 'var(--ink-900)' }}>
-            سورة {currentSurah.name_arabic}
-          </h2>
-          <span className="ui-eyebrow" style={{ marginTop: 8 }}>
-            {currentSurah.revelation_place === 'makkah' ? 'مكية' : 'مدنية'} · الآيات {ar(fromV)}–{ar(toV)}
-          </span>
-        </motion.div>
-      )}
-
-      {/* Mushaf */}
-      <motion.div variants={reveal} className="ui-card" style={{ padding: 32, marginBottom: 24, minHeight: 220 }}>
-        {loading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '50px 0' }}>
-            <Loader2 size={26} className="animate-spin" style={{ color: 'var(--brass-700)' }} />
-            <p style={{ color: 'var(--ink-500)', fontFamily: 'Share Tech Mono, monospace', fontSize: '0.78rem', letterSpacing: '0.18em' }}>LOADING AYAH ...</p>
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', lineHeight: 2.4 }}>
-            {listenSurah !== 9 && fromV === 1 && (
-              <p style={{ fontFamily: 'Amiri, serif', fontSize: '1.5rem', color: 'var(--brass-700)', marginBottom: 14, fontWeight: 700 }}>
-                بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
-              </p>
-            )}
-            <div style={{ fontFamily: 'Amiri, serif', fontSize: 'clamp(1.5rem, 3vw, 2rem)', color: 'var(--ink-900)' }}>
-              {verses.map(v => {
-                const active = currentPlayingAudio && v.verse_number === currentVerseIndex;
-                return (
-                  <span key={v.verse_key}>
-                    <span style={{
-                      padding: '2px 6px', borderRadius: 8,
-                      background: active ? 'rgba(212,175,55,0.22)' : 'transparent',
-                      color: active ? '#0D3D24' : 'var(--ink-900)',
-                      fontWeight: active ? 700 : 400,
-                      transition: 'background 0.3s ease, color 0.3s ease',
-                    }}>
-                      {v.text_uthmani}
-                    </span>
-                    <span style={{ color: 'var(--brass-700)', fontWeight: 700, margin: '0 4px', userSelect: 'none' }}>
-                      ﴿{ar(v.verse_number)}﴾
-                    </span>{' '}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </motion.div>
-
       {/* Controls */}
       <motion.div variants={reveal} className="ui-card--emerald" style={{ padding: '22px 24px', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
@@ -300,6 +260,57 @@ function ListenView() {
             {listenRepeat ? 'التكرار مفعّل · يُعاد المقطع تلقائيًا' : `الآية الحالية ${currentPlayingAudio ? ar(currentVerseIndex) : '—'}`}
           </span>
         </div>
+      </motion.div>
+
+      {/* Surah banner */}
+      {currentSurah && (
+        <motion.div variants={reveal} style={{ textAlign: 'center', marginBottom: 18 }}>
+          <h2 style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: 'clamp(2rem,5vw,2.8rem)', lineHeight: 1, color: 'var(--ink-900)' }}>
+            سورة {currentSurah.name_arabic}
+          </h2>
+          <span className="ui-eyebrow" style={{ marginTop: 8 }}>
+            {currentSurah.revelation_place === 'makkah' ? 'مكية' : 'مدنية'} · الآيات {ar(fromV)}–{ar(toV)}
+          </span>
+        </motion.div>
+      )}
+
+      {/* Mushaf */}
+      <motion.div variants={reveal} className="ui-card" style={{ padding: 32, marginBottom: 24, minHeight: 220 }}>
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '50px 0' }}>
+            <Loader2 size={26} className="animate-spin" style={{ color: 'var(--brass-700)' }} />
+            <p style={{ color: 'var(--ink-500)', fontFamily: 'Share Tech Mono, monospace', fontSize: '0.78rem', letterSpacing: '0.18em' }}>LOADING AYAH ...</p>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', lineHeight: 2.4 }}>
+            {listenSurah !== 9 && fromV === 1 && (
+              <p style={{ fontFamily: "var(--font-aref-ruqaa), 'Aref Ruqaa', Amiri, serif", fontSize: '1.7rem', color: '#000', marginBottom: 14, fontWeight: 700 }}>
+                بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+              </p>
+            )}
+            <div style={{ fontFamily: "var(--font-aref-ruqaa), 'Aref Ruqaa', Amiri, serif", fontSize: 'clamp(1.7rem, 3.4vw, 2.4rem)', color: '#000', lineHeight: 2.2 }}>
+              {verses.map(v => {
+                const active = currentPlayingAudio && v.verse_number === currentVerseIndex;
+                return (
+                  <span key={v.verse_key}>
+                    <span style={{
+                      padding: '2px 6px', borderRadius: 8,
+                      background: active ? 'rgba(212,175,55,0.22)' : 'transparent',
+                      color: active ? '#0D3D24' : '#000',
+                      fontWeight: active ? 700 : 400,
+                      transition: 'background 0.3s ease, color 0.3s ease',
+                    }}>
+                      {v.text_uthmani}
+                    </span>
+                    <span style={{ color: 'var(--brass-700)', fontWeight: 700, margin: '0 4px', userSelect: 'none' }}>
+                      ﴿{ar(v.verse_number)}﴾
+                    </span>{' '}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </motion.div>
 
       {/* Test yourself CTA */}

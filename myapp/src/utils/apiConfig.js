@@ -18,4 +18,31 @@ const MUAALEM_BASE = process.env.NEXT_PUBLIC_MUAALEM_URL || 'http://localhost:88
 const WS_HTTP = process.env.NEXT_PUBLIC_WS_URL || MUAALEM_BASE;
 const WS_BASE = WS_HTTP.replace(/^http/, 'ws');
 
-export { API_BASE, MUAALEM_BASE, WS_BASE };
+/**
+ * Fetch JSON with graceful degradation. Returns `fallback` (default null) instead
+ * of throwing when the backend is unreachable, returns a non-2xx status, or sends
+ * a non-JSON body (e.g. a LocalTunnel "503 Tunnel Unavailable" page). Failures are
+ * logged with console.warn — not console.error — so an offline backend in dev does
+ * not trip the Next.js error overlay.
+ */
+async function fetchJsonSafe(url, options, fallback = null) {
+    try {
+        const res = await fetch(url, options);
+        if (!res.ok) {
+            console.warn(`[api] ${res.status} ${res.statusText} — ${url}`);
+            return fallback;
+        }
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('json')) {
+            console.warn(`[api] Expected JSON but got "${contentType || 'unknown'}" — ${url}`);
+            return fallback;
+        }
+        return await res.json();
+    } catch (err) {
+        // Network-level failure (DNS, CORS, connection refused, tunnel down).
+        console.warn(`[api] Request failed — ${url}: ${err.message}`);
+        return fallback;
+    }
+}
+
+export { API_BASE, MUAALEM_BASE, WS_BASE, fetchJsonSafe };

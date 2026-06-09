@@ -188,7 +188,7 @@ export default function PracticalQuizPage({ params }) {
                 </div>
                 <h2 className="ui-title" style={{ fontSize: '2rem' }}>ممتاز! لا توجد أخطاء</h2>
                 <p style={{ color: 'var(--ink-700)', marginTop: 12, marginBottom: 22 }}>
-                    لم نجد أخطاء مسجلة من النوع "{errorInfo?.name || errorType}" تحتاج تصحيح.
+                    لم نجد أخطاء مسجلة من النوع &quot;{errorInfo?.name || errorType}&quot; تحتاج تصحيح.
                 </p>
                 <button onClick={() => router.push('/progress')} className="ui-cta" type="button">العودة للتقدم</button>
             </div>
@@ -221,7 +221,7 @@ export default function PracticalQuizPage({ params }) {
                         {percentage}%
                     </div>
                     <p style={{ color: isPassed ? 'var(--ink-700)' : 'rgba(245,239,227,0.7)', marginBottom: 24 }}>
-                        قرأت <span className="font-num">{passedCount}</span> من <span className="font-num">{results.length}</span> آية بشكل صحيح في "{errorInfo?.name}".
+                        قرأت <span className="font-num">{passedCount}</span> من <span className="font-num">{results.length}</span> آية بشكل صحيح في &quot;{errorInfo?.name}&quot;.
                     </p>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, textAlign: 'right' }}>

@@ -1,5 +1,5 @@
 import "./globals.css";
-import { IBM_Plex_Sans_Arabic, Rakkas } from "next/font/google";
+import { IBM_Plex_Sans_Arabic, Rakkas, Aref_Ruqaa } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { arSA } from "@clerk/localizations";
 import AppLayoutWrapper from "../components/AppLayoutWrapper";
@@ -80,6 +80,17 @@ const rakkas = Rakkas({
   preload: true,
 });
 
+// Quranic display face for the Listen page mushaf. Regular (non-"Ink") Aref Ruqaa
+// is a monochrome font, so it respects the CSS `color` — the "Ink" variant is a
+// color font with baked-in shading that ignores `color`.
+const arefRuqaa = Aref_Ruqaa({
+  subsets: ["arabic"],
+  weight: ["400", "700"],
+  variable: "--font-aref-ruqaa",
+  display: "swap",
+  preload: true,
+});
+
 export const metadata = {
   title: "تجويد.ai | معلم التجويد التفاعلي",
   description: "منصة تعليم تجويد القرآن الكريم التفاعلية باستخدام الذكاء الاصطناعي",
@@ -102,7 +113,7 @@ export default function RootLayout({ children }) {
     <html
       lang="ar"
       dir="rtl"
-      className={`${ibmPlexArabic.variable} ${rakkas.variable}`}
+      className={`${ibmPlexArabic.variable} ${rakkas.variable} ${arefRuqaa.variable}`}
     >
       <head>
         <link rel="icon" href="/favicon.ico" />

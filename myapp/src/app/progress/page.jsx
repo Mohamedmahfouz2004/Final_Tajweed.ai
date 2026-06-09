@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import useAppStore from '../../store/useAppStore';
 import { getErrorInfo } from '../../utils/errorTypeMap';
-import { API_BASE } from '../../utils/apiConfig';
+import { API_BASE, fetchJsonSafe } from '../../utils/apiConfig';
 
 const API_URL = API_BASE;
 
@@ -37,22 +37,19 @@ export default function ProgressPage() {
 
     useEffect(() => {
         fetchUserProgress();
-        fetchDetailedSummary();
         fetchSurahs();
-    }, []);
 
-    const fetchDetailedSummary = async () => {
-        const token = await useAppStore.getState().getToken?.();
-        if (!token) return;
-        try {
-            const res = await fetch(`${API_URL}/api/progress/detailed-summary`, {
+        let cancelled = false;
+        (async () => {
+            const token = await useAppStore.getState().getToken?.();
+            if (!token) return;
+            const data = await fetchJsonSafe(`${API_URL}/api/progress/detailed-summary`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (res.ok) setDetailedData(await res.json());
-        } catch (err) {
-            console.error('Failed to fetch detailed summary:', err);
-        }
-    };
+            if (data && !cancelled) setDetailedData(data);
+        })();
+        return () => { cancelled = true; };
+    }, [fetchUserProgress, fetchSurahs]);
 
     const totalMistakes    = detailedData?.summary?.totalMistakes    || 0;
     const totalCorrected   = detailedData?.summary?.totalCorrected   || 0;

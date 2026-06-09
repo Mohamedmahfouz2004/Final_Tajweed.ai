@@ -28,16 +28,27 @@ export default function AppLayoutWrapper({ children }) {
     const isAdminPath = pathname?.startsWith('/admin');
 
     useEffect(() => {
-        setMounted(true);
+        // Flip the hydration guard after paint rather than synchronously in the effect.
+        const raf = requestAnimationFrame(() => setMounted(true));
         const timer = setTimeout(() => { hideSplash(); }, 2500);
 
         fetch('https://api.quran.com/api/v4/chapters?language=ar')
             .then(res => res.json())
-            .then(data => { if (data.chapters) setSurahs(data.chapters); })
+            .then(data => {
+                if (data.chapters) {
+                    // Normalize to a superset shape so every component works regardless of
+                    // which field it reads (name/aya_count OR name_arabic/verses_count).
+                    setSurahs(data.chapters.map(c => ({
+                        ...c,
+                        name: c.name_arabic || c.name_simple,
+                        aya_count: c.verses_count,
+                    })));
+                }
+            })
             .catch(err => console.error("Error fetching chapters:", err));
 
-        return () => clearTimeout(timer);
-    }, []);
+        return () => { cancelAnimationFrame(raf); clearTimeout(timer); };
+    }, [hideSplash, setSurahs]);
 
     // Prevent hydration mismatch
     if (!mounted) {

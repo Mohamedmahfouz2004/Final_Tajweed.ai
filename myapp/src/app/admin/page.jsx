@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit2, Trash2, Video, BookOpen, AlertCircle, Save, X, LogOut, ShieldCheck, Users, BarChart3, UserCog, Crown } from 'lucide-react';
+import { Plus, Edit2, Trash2, Video, BookOpen, AlertCircle, Save, X, LogOut, ShieldCheck, Users, BarChart3, UserCog, Crown, HelpCircle, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser, useClerk } from '@clerk/nextjs';
 import useAppStore from '../../store/useAppStore';
@@ -378,7 +378,7 @@ export default function AdminDashboardPage() {
                                                                 ))}
                                                             </div>
                                                         ) : (
-                                                            <p className="text-gray-400 text-center py-6">لا توجد أسئلة بعد، اضغط "إضافة سؤال" لإضافة أول سؤال</p>
+                                                            <p className="text-gray-400 text-center py-6">لا توجد أسئلة بعد، اضغط &quot;إضافة سؤال&quot; لإضافة أول سؤال</p>
                                                         )}
                                                     </div>
                                                 </motion.div>
