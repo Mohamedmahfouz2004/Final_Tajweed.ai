@@ -11,8 +11,8 @@
  * Each can be overridden via a NEXT_PUBLIC_* env var (set them in .env.local).
  */
 
-const API_BASE     = process.env.NEXT_PUBLIC_API_URL     || 'http://localhost:8000';
-const MUAALEM_BASE = process.env.NEXT_PUBLIC_MUAALEM_URL || 'http://localhost:8888';
+const API_BASE     = process.env.NEXT_PUBLIC_API_URL     || 'https://neat-cougars-glow.loca.lt';
+const MUAALEM_BASE = process.env.NEXT_PUBLIC_MUAALEM_URL || 'https://tajweed-eltmsa7-ai.loca.lt';
 
 // Live recitation WebSocket → Muaalem's native /ws/stream (override with NEXT_PUBLIC_WS_URL).
 const WS_HTTP = process.env.NEXT_PUBLIC_WS_URL || MUAALEM_BASE;

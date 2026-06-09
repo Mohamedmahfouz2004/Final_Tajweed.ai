@@ -5,6 +5,7 @@ import audioService from '../utils/audioService';
 import { SURAH_LIST } from '../utils/surahNames';
 import { API_BASE, fetchJsonSafe } from '../utils/apiConfig';
 
+
 const useAppStore = create((set, get) => ({
     // --- Auth State (synced from Clerk via ClerkStoreBridge) ---
     isLoggedIn: false,
