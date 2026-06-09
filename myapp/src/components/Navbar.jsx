@@ -68,13 +68,14 @@ const Navbar = () => {
         {/* Brand */}
         <Link
           href="/"
-          className="topnav-brand"
-          style={isMobile ? { flex: 2, justifyContent: 'center', order: 2 } : {}}
+          className="topnav-brand flex items-center gap-2 group mr-2"
+          style={isMobile ? { flex: 2, justifyContent: 'center', order: 2, textDecoration: 'none' } : { textDecoration: 'none' }}
         >
-          <img src="/logo.svg" alt="تجويد.ai" className="brand-logo" />
-          <span className="topnav-brand-title">
-            تجويد<span>.ai</span>
-          </span>
+          <img src="/logo.svg" alt="تجويد.ai" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+          <strong className="flex items-baseline" aria-label="تجويد ai" dir="rtl" style={{ gap: '4px', flexDirection: 'row' }}>
+            <span style={{ fontFamily: 'var(--font-reem-kufi), sans-serif', fontWeight: 'bold', fontSize: '24px', color: '#044D29' }}>تجويد</span>
+            <span style={{ fontFamily: 'var(--font-inter), sans-serif', fontWeight: 'bold', fontSize: '24px', color: '#B8923E', position: 'relative', top: '2px', marginLeft: '-2px' }}>.ai</span>
+          </strong>
         </Link>
 
         {/* Desktop: Nav links */}
@@ -242,13 +243,10 @@ const Navbar = () => {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <img src="/logo.svg" alt="" style={{ height: '28px' }} />
-                  <span style={{
-                    fontFamily: "'Rakkas', cursive",
-                    fontSize: '1.25rem',
-                    color: '#D4AF37',
-                  }}>
-                    تجويد<span style={{ color: '#F0EAD6' }}>.ai</span>
-                  </span>
+                  <strong className="flex items-baseline" aria-label="تجويد ai" dir="rtl" style={{ gap: '4px', flexDirection: 'row' }}>
+                    <span style={{ fontFamily: 'var(--font-reem-kufi), sans-serif', fontWeight: 'bold', fontSize: '24px', color: '#044D29' }}>تجويد</span>
+                    <span style={{ fontFamily: 'var(--font-inter), sans-serif', fontWeight: 'bold', fontSize: '24px', color: '#B8923E', position: 'relative', top: '2px', marginLeft: '-2px' }}>.ai</span>
+                  </strong>
                 </div>
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}

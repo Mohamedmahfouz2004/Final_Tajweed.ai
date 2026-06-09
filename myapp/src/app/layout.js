@@ -91,6 +91,22 @@ const arefRuqaa = Aref_Ruqaa({
   preload: true,
 });
 
+import { Reem_Kufi, Inter } from "next/font/google";
+
+const reemKufi = Reem_Kufi({
+  subsets: ["arabic"],
+  weight: ["400", "700"],
+  variable: "--font-reem-kufi",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
 export const metadata = {
   title: "تجويد.ai | معلم التجويد التفاعلي",
   description: "منصة تعليم تجويد القرآن الكريم التفاعلية باستخدام الذكاء الاصطناعي",
@@ -113,7 +129,7 @@ export default function RootLayout({ children }) {
     <html
       lang="ar"
       dir="rtl"
-      className={`${ibmPlexArabic.variable} ${rakkas.variable} ${arefRuqaa.variable}`}
+      className={`${ibmPlexArabic.variable} ${rakkas.variable} ${arefRuqaa.variable} ${reemKufi.variable} ${inter.variable}`}
       suppressHydrationWarning
     >
       <head>

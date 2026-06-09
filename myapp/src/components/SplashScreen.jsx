@@ -107,23 +107,28 @@ const SplashScreen = ({ show }) => (
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35, duration: 0.5 }}
-            style={{ textAlign: 'center' }}
+            style={{ textAlign: 'center', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '8px', flexDirection: 'row', direction: 'rtl' }}
           >
-            <h1 style={{
-              fontFamily: "var(--font-rakkas), 'Rakkas', cursive",
-              fontSize: '4.5rem',
-              color: 'var(--parchment-50)',
-              lineHeight: 1, margin: 0, letterSpacing: '0.01em', fontWeight: 400,
+            <span style={{
+              fontFamily: 'var(--font-reem-kufi), sans-serif',
+              fontWeight: 'bold',
+              fontSize: '80px',
+              color: '#044D29',
+              lineHeight: 1,
             }}>
               تجويد
-            </h1>
+            </span>
             <span style={{
-              fontFamily: "'Share Tech Mono', monospace",
-              fontSize: '0.78rem', letterSpacing: '0.42em',
-              color: 'var(--brass-500)',
-              display: 'block', marginTop: 8, textTransform: 'uppercase',
+              fontFamily: 'var(--font-inter), sans-serif',
+              fontWeight: 'bold',
+              fontSize: '80px',
+              color: '#B8923E',
+              lineHeight: 1,
+              position: 'relative',
+              top: '8px',
+              marginLeft: '-4px'
             }}>
-              . AI
+              .ai
             </span>
           </motion.div>
 
