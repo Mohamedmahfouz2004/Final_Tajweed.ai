@@ -53,7 +53,7 @@ const Navbar = () => {
       </Link>
 
       {/* ── Desktop Nav links ── */}
-      <div className="topnav-links hidden md:flex">
+      <div className="topnav-links !hidden md:!flex">
         {navItems.map((item) => {
           const isActive = item.exact
             ? pathname === item.href
