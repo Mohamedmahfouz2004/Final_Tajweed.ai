@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { speakArabic, startVoiceCommands, getRouteFromCommand, getPageNameAr } from '../utils/voiceUtils';
 import useAppStore from '../store/useAppStore';
-import { Mic, MicOff } from 'lucide-react';
 
 const VoiceAssistant = () => {
   const router = useRouter();
@@ -31,7 +30,6 @@ const VoiceAssistant = () => {
   ];
 
   const surahListToUse = (surahs && surahs.length > 0) ? surahs : LOCAL_SURAHS;
-  const [isActive, setIsActive] = useState(false);
 
   const recognitionRef = useRef(null);
   const [debugText, setDebugText] = React.useState('');
@@ -51,7 +49,7 @@ const VoiceAssistant = () => {
   // Helper to find surah by name - FAIL-SAFE VERSION
   const findSurah = (text) => {
     const t = text.replace(/[أإآ]/g, 'ا').replace(/[ةت]/g, 'ه').replace(/\s+/g, '').toLowerCase();
-    
+
     // Direct keyword matching for common surahs (Fail-safe)
     if (t.includes('كهف')) return { id: 18, name: 'الكهف' };
     if (t.includes('بقره')) return { id: 2, name: 'البقرة' };
@@ -89,137 +87,137 @@ const VoiceAssistant = () => {
 
   // Keep the latest command handler in a ref without mutating during render.
   useEffect(() => {
-  onCommandRef.current = (transcript) => {
-    const t = transcript.toLowerCase();
-    setDebugText(t);
+    onCommandRef.current = (transcript) => {
+      const t = transcript.toLowerCase();
+      setDebugText(t);
 
-    if (t.includes('الغ') || t.includes('توقف') || t.includes('كنسل')) {
-      convStepRef.current = null;
-      speakArabic("تم إلغاء العملية.");
-      return;
-    }
+      if (t.includes('الغ') || t.includes('توقف') || t.includes('كنسل')) {
+        convStepRef.current = null;
+        speakArabic("تم إلغاء العملية.");
+        return;
+      }
 
-    // Navigation (Highest priority - allows breaking out of conversation)
-    const route = getRouteFromCommand(t);
-    if (route && route !== pathname) {
-      convStepRef.current = null; // Reset conversation if navigating away
-      
-      if (route === '/progress') {
+      // Navigation (Highest priority - allows breaking out of conversation)
+      const route = getRouteFromCommand(t);
+      if (route && route !== pathname) {
+        convStepRef.current = null; // Reset conversation if navigating away
+
+        if (route === '/progress') {
+          setTimeout(() => {
+            speakArabic("أنت الآن في صفحة التقدم. هل تريد أن تسمع ملخص الإنجازات والأخطاء؟");
+          }, 2500);
+        }
+
         setTimeout(() => {
-          speakArabic("أنت الآن في صفحة التقدم. هل تريد أن تسمع ملخص الإنجازات والأخطاء؟");
-        }, 2500);
-      }
-
-      setTimeout(() => {
-        router.push(route);
-      }, 500);
-      return;
-    }
-
-    // --- Conversational Logic ---
-    const step = convStepRef.current;
-    
-    if (pathname === '/practice' && step) {
-      if (step === 'ASK_MODE') {
-        if (t.includes('سمع') || t.includes('استماع')) {
-          convDataRef.current.mode = 'listen';
-          setPracticeActiveTab('listen');
-          setPracticeViewState('practice');
-          speakArabic("تمام، سمع التلاوة. أي قارئ تحب أن تسمع له؟ متاح عبد الباسط، المنشاوي، والحصري.");
-          convStepRef.current = 'ASK_RECITER';
-        } else if (t.includes('تسميع') || t.includes('تسجيل') || t.includes('سجل')) {
-          convDataRef.current.mode = 'record';
-          setPracticeActiveTab('record');
-          setPracticeViewState('practice');
-          speakArabic("تمام، تسميع التلاوة. ما هي السورة التي تريدها؟");
-          convStepRef.current = 'ASK_SURAH';
-        }
+          router.push(route);
+        }, 500);
         return;
       }
 
-      if (step === 'ASK_RECITER') {
-        const reciter = findReciter(t);
-        if (reciter) {
-          convDataRef.current.reciterId = reciter.id;
-          speakArabic(`اختيار موفق، القارئ ${reciter.name}. ما هي السورة التي تريدها؟`);
-          convStepRef.current = 'ASK_SURAH';
-        } else {
-          speakArabic("عذراً، لم أتعرف على القارئ. يرجى اختيار عبد الباسط، المنشاوي، أو الحصري.");
-        }
-        return;
-      }
+      // --- Conversational Logic ---
+      const step = convStepRef.current;
 
-      if (step === 'ASK_SURAH') {
-        const found = findSurah(t);
-        if (found) {
-          convDataRef.current.surahId = found.id;
-          speakArabic(`تمام، سورة ${found.name}. من الآية رقم كم؟`);
-          convStepRef.current = 'ASK_VERSE_FROM';
-        } else {
-          speakArabic(`عذراً، لم أجد سورة بهذا الاسم في قائمتي. لقد سمعت ${t}. يرجى المحاولة مرة أخرى.`);
-        }
-        return;
-      }
-
-      if (step === 'ASK_VERSE_FROM') {
-        const num = extractNumber(t);
-        if (num) {
-          convDataRef.current.fromVerse = num;
-          speakArabic(`من الآية ${num}. إلى الآية رقم كم؟`);
-          convStepRef.current = 'ASK_VERSE_TO';
-        } else {
-          speakArabic("يرجى ذكر رقم الآية بوضوح.");
-        }
-        return;
-      }
-
-      if (step === 'ASK_VERSE_TO') {
-        const num = extractNumber(t);
-        if (num) {
-          convDataRef.current.toVerse = num;
-          speakArabic(`إلى الآية ${num}. هل أنت جاهز للبدء الآن؟`);
-          convStepRef.current = 'ASK_CONFIRM';
-        } else {
-          speakArabic("يرجى ذكر رقم الآية بوضوح.");
-        }
-        return;
-      }
-
-      if (step === 'ASK_CONFIRM') {
-        if (t.includes('نعم') || t.includes('جاهز') || t.includes('ايوة') || t.includes('ماشي') || t.includes('بدأ')) {
-          speakArabic("بالتوفيق، نبدأ الآن.");
-          const data = convDataRef.current;
-          
-          // Apply settings
-          if (data.mode === 'listen') {
-            setSelectedReciter(data.reciterId);
+      if (pathname === '/practice' && step) {
+        if (step === 'ASK_MODE') {
+          if (t.includes('سمع') || t.includes('استماع')) {
+            convDataRef.current.mode = 'listen';
+            setPracticeActiveTab('listen');
+            setPracticeViewState('practice');
+            speakArabic("تمام، سمع التلاوة. أي قارئ تحب أن تسمع له؟ متاح عبد الباسط، المنشاوي، والحصري.");
+            convStepRef.current = 'ASK_RECITER';
+          } else if (t.includes('تسميع') || t.includes('تسجيل') || t.includes('سجل')) {
+            convDataRef.current.mode = 'record';
+            setPracticeActiveTab('record');
+            setPracticeViewState('practice');
+            speakArabic("تمام، تسميع التلاوة. ما هي السورة التي تريدها؟");
+            convStepRef.current = 'ASK_SURAH';
           }
-          setSelectedSurah(data.surahId);
-          setFromVerse(data.fromVerse);
-          setToVerse(data.toVerse);
-          
-          if (data.mode === 'listen') {
-            setTimeout(() => playVerse(data.fromVerse), 500);
+          return;
+        }
+
+        if (step === 'ASK_RECITER') {
+          const reciter = findReciter(t);
+          if (reciter) {
+            convDataRef.current.reciterId = reciter.id;
+            speakArabic(`اختيار موفق، القارئ ${reciter.name}. ما هي السورة التي تريدها؟`);
+            convStepRef.current = 'ASK_SURAH';
           } else {
-            // Start Live Recitation mode
-            setTimeout(() => {
-              router.push('/live-moshaf');
-            }, 500);
+            speakArabic("عذراً، لم أتعرف على القارئ. يرجى اختيار عبد الباسط، المنشاوي، أو الحصري.");
           }
-          convStepRef.current = null;
+          return;
         }
-        return;
-      }
-    }
 
-    // Handle detailed stats request explicitly - Removed "قولي" and added new triggers
-    const triggerKeywords = ['الملخص', 'النتائج', 'انجازاتي', 'مستوايا', 'اريد الملخص', 'ما هي النتائج', 'عملت ايه'];
-    if (triggerKeywords.some(key => t.includes(key))) {
+        if (step === 'ASK_SURAH') {
+          const found = findSurah(t);
+          if (found) {
+            convDataRef.current.surahId = found.id;
+            speakArabic(`تمام، سورة ${found.name}. من الآية رقم كم؟`);
+            convStepRef.current = 'ASK_VERSE_FROM';
+          } else {
+            speakArabic(`عذراً، لم أجد سورة بهذا الاسم في قائمتي. لقد سمعت ${t}. يرجى المحاولة مرة أخرى.`);
+          }
+          return;
+        }
+
+        if (step === 'ASK_VERSE_FROM') {
+          const num = extractNumber(t);
+          if (num) {
+            convDataRef.current.fromVerse = num;
+            speakArabic(`من الآية ${num}. إلى الآية رقم كم؟`);
+            convStepRef.current = 'ASK_VERSE_TO';
+          } else {
+            speakArabic("يرجى ذكر رقم الآية بوضوح.");
+          }
+          return;
+        }
+
+        if (step === 'ASK_VERSE_TO') {
+          const num = extractNumber(t);
+          if (num) {
+            convDataRef.current.toVerse = num;
+            speakArabic(`إلى الآية ${num}. هل أنت جاهز للبدء الآن؟`);
+            convStepRef.current = 'ASK_CONFIRM';
+          } else {
+            speakArabic("يرجى ذكر رقم الآية بوضوح.");
+          }
+          return;
+        }
+
+        if (step === 'ASK_CONFIRM') {
+          if (t.includes('نعم') || t.includes('جاهز') || t.includes('ايوة') || t.includes('ماشي') || t.includes('بدأ')) {
+            speakArabic("بالتوفيق، نبدأ الآن.");
+            const data = convDataRef.current;
+
+            // Apply settings
+            if (data.mode === 'listen') {
+              setSelectedReciter(data.reciterId);
+            }
+            setSelectedSurah(data.surahId);
+            setFromVerse(data.fromVerse);
+            setToVerse(data.toVerse);
+
+            if (data.mode === 'listen') {
+              setTimeout(() => playVerse(data.fromVerse), 500);
+            } else {
+              // Start Live Recitation mode
+              setTimeout(() => {
+                router.push('/live-moshaf');
+              }, 500);
+            }
+            convStepRef.current = null;
+          }
+          return;
+        }
+      }
+
+      // Handle detailed stats request explicitly - Removed "قولي" and added new triggers
+      const triggerKeywords = ['الملخص', 'النتائج', 'انجازاتي', 'مستوايا', 'اريد الملخص', 'ما هي النتائج', 'عملت ايه'];
+      if (triggerKeywords.some(key => t.includes(key))) {
         const up = useAppStore.getState().userProgress;
         const accuracy = up.averageAccuracy || 0;
         const verses = up.versesPracticed || 0;
         const mistakes = up.totalMistakes || 0;
-        
+
         let report = `ما شاء الله، لقد تدربت على ${verses} آية حتى الآن. `;
         if (verses > 0) {
           report += `نسبة دقتك في التلاوة هي ${accuracy} في المائة. `;
@@ -229,16 +227,19 @@ const VoiceAssistant = () => {
         } else {
           report += "ابدأ في التلاوة الآن لكي أستطيع تتبع تقدمك وإخبارك بإنجازاتك.";
         }
-        
+
         speakArabic(report);
         return;
-    }
-  };
+      }
+    };
   });
 
   useEffect(() => {
-    if (!isActive || isRecording || isPlaying) {
+    if (isRecording || isPlaying) {
       if (recognitionRef.current) {
+        if (recognitionRef.current._restartTimeout) {
+          clearTimeout(recognitionRef.current._restartTimeout);
+        }
         recognitionRef.current.onend = null;
         recognitionRef.current.stop();
         recognitionRef.current = null;
@@ -247,32 +248,24 @@ const VoiceAssistant = () => {
     }
 
     if (!recognitionRef.current) {
-      recognitionRef.current = startVoiceCommands(
-        (t) => {
-          onCommandRef.current(t);
-          // Turn off after a command is received
-          setIsActive(false);
-        },
-        (err) => { 
-          console.error("Voice Error:", err);
-          setIsActive(false);
-        },
-        () => {
-          // Turn off naturally when speech recognition ends (e.g., silence timeout)
-          setIsActive(false);
-        }
-      );
+      // Errors that are environment/permission related — not actionable, silence them
+      const SILENT_ERRORS = new Set(['audio-capture', 'not-allowed', 'no-speech', 'service-not-allowed']);
+
+      recognitionRef.current = startVoiceCommands((t) => onCommandRef.current(t), (err) => {
+        if (SILENT_ERRORS.has(err)) return; // mic unavailable / no permission — expected
+        console.warn("VoiceAssistant unexpected error:", err);
+      });
     }
-  }, [isActive, isRecording, isPlaying]);
+  }, [isRecording, isPlaying]);
 
   const lastSpokenPath = useRef('');
 
   useEffect(() => {
     // Prevent double-speaking on mount or strict mode
     if (lastSpokenPath.current === pathname) return;
-    
+
     const pageName = getPageNameAr(pathname);
-    
+
     if (pathname === '/practice') {
       speakArabic(`أنت الآن في ${pageName}. هل تريد سمع التلاوة أم تسميع لتلاوة؟`);
       convStepRef.current = 'ASK_MODE';
@@ -280,28 +273,17 @@ const VoiceAssistant = () => {
       speakArabic(`أنت الآن في ${pageName}`);
       convStepRef.current = null; // Reset if leaving practice
     }
-    
+
     lastSpokenPath.current = pathname;
   }, [pathname]);
 
   return (
-    <div className="fixed bottom-4 left-4 z-[9999] flex flex-col gap-2 items-start pointer-events-none">
-      {debugText && isActive && (
+    <div className="fixed bottom-4 left-4 z-[9999] pointer-events-none">
+      {debugText && (
         <div className="bg-black/60 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-sans border border-white/20 shadow-2xl animate-pulse">
           🎤 {debugText}
         </div>
       )}
-      <button
-        onClick={() => setIsActive(!isActive)}
-        className={`pointer-events-auto flex items-center justify-center w-12 h-12 rounded-full shadow-2xl transition-all duration-300 ${
-          isActive 
-            ? 'bg-gradient-to-r from-red-500 to-red-600 text-white animate-pulse shadow-red-500/50' 
-            : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-md hover:text-[#1B5E3B]'
-        }`}
-        title="تفعيل/تعطيل المساعد الصوتي (المسطرة)"
-      >
-        {isActive ? <Mic size={24} /> : <MicOff size={24} />}
-      </button>
     </div>
   );
 };

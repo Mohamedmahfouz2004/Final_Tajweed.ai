@@ -344,7 +344,7 @@ export default function LiveMoshafPage() {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col font-arabic" dir="rtl" style={{ background: 'var(--parchment-100)' }}>
+        <div className="flex flex-col flex-1 font-arabic min-h-[calc(100vh-80px)]" dir="rtl" style={{ background: 'var(--parchment-100)' }}>
             <SessionResult
                 onRetry={() => handleStart()}
                 onContinue={() => { handleExit(); }}
@@ -443,7 +443,7 @@ export default function LiveMoshafPage() {
             <div className="shrink-0" style={{
                 background: 'var(--parchment-50)', borderTop: '1px solid var(--sand-400)', padding: 16,
             }}>
-                <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+                <div className="max-w-4xl mx-auto flex items-center flex-wrap md:flex-nowrap justify-center md:justify-between gap-4">
                     <div className="flex gap-3 items-center" style={{ flexWrap: 'wrap' }}>
                         <span className="ui-pill" style={{ color: 'var(--emerald-700)' }}>
                             <Clock size={12} />
