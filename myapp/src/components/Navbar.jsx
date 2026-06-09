@@ -33,8 +33,8 @@ const Navbar = () => {
 
   return (
     <nav className="topnav">
-      {/* ── Mobile Menu Toggle (Visually Right in RTL) ── */}
-      <div className="flex md:hidden flex-1 justify-start order-1">
+      {/* ── Mobile Menu Toggle (Right side in RTL) ── */}
+      <div className="mobile-menu-wrapper" style={{ display: 'none' }}>
         <button
           className="mobile-menu-btn"
           onClick={() => setIsMobileMenuOpen(true)}
@@ -44,8 +44,8 @@ const Navbar = () => {
         </button>
       </div>
 
-      {/* ── Brand (Visually Center on mobile, Right on desktop) ── */}
-      <Link href="/" className="topnav-brand order-2 md:order-none flex-[2] md:flex-none justify-center md:justify-start">
+      {/* ── Brand ── */}
+      <Link href="/" className="topnav-brand">
         <img src="/logo.svg" alt="تجويد.ai" className="brand-logo" />
         <span className="topnav-brand-title">
           تجويد<span>.ai</span>
@@ -53,7 +53,7 @@ const Navbar = () => {
       </Link>
 
       {/* ── Desktop Nav links ── */}
-      <div className="topnav-links !hidden md:!flex">
+      <div className="topnav-links">
         {navItems.map((item) => {
           const isActive = item.exact
             ? pathname === item.href
@@ -72,8 +72,8 @@ const Navbar = () => {
         })}
       </div>
 
-      {/* ── Auth (Visually Left in RTL) ── */}
-      <div className="topnav-auth order-3 md:order-none flex-1 md:flex-none justify-end">
+      {/* ── Auth ── */}
+      <div className="topnav-auth">
         <motion.div
           animate={{ opacity: [1, 0.25, 1] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
@@ -86,7 +86,7 @@ const Navbar = () => {
         </Show>
         <Show when="signed-out">
           <SignUpButton mode="modal">
-            <button className="topnav-auth-btn topnav-auth-btn--logout hidden sm:inline-flex" type="button">
+            <button className="topnav-auth-btn topnav-auth-btn--logout topnav-auth-signup" type="button">
               <span>SIGN&nbsp;UP</span>
             </button>
           </SignUpButton>

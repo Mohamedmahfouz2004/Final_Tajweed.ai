@@ -432,8 +432,37 @@ label {
     font-size: 1.35rem;
   }
 
+  /* ── HIDE desktop nav links on mobile ── */
+  .topnav-links {
+    display: none !important;
+  }
+
+  /* ── Show hamburger menu on mobile ── */
+  .mobile-menu-wrapper {
+    display: flex !important;
+    flex: 1;
+    justify-content: flex-start;
+    order: 1;
+  }
+
+  /* ── Center brand on mobile ── */
+  .topnav-brand {
+    flex: 2;
+    justify-content: center;
+    order: 2;
+  }
+
+  /* ── Auth on left side in RTL ── */
   .topnav-auth {
+    flex: 1;
+    justify-content: flex-end;
+    order: 3;
     gap: 8px;
+  }
+
+  /* ── Hide signup button on small screens ── */
+  .topnav-auth-signup {
+    display: none !important;
   }
 
   .main-content {
