@@ -423,9 +423,22 @@ label {
 
 @media (max-width: 768px) {
   .topnav {
-    padding: 0 16px;
+    padding: 0 12px;
+    height: 50px;
   }
-  
+
+  .topnav-brand-title {
+    font-size: 1.3rem;
+  }
+
+  .topnav-auth {
+    gap: 6px;
+  }
+
+  .topnav-auth .topnav-auth-btn--logout {
+    display: none;
+  }
+
   .topnav-links {
     position: fixed;
     bottom: 0;
@@ -437,8 +450,9 @@ label {
     border-top: 1px solid rgba(212, 175, 55, 0.18);
     display: flex;
     justify-content: space-around;
-    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
     z-index: 200;
+    gap: 0;
   }
 
   .topnav-item span {
@@ -447,17 +461,82 @@ label {
 
   .topnav-item {
     flex-direction: column;
-    padding: 10px;
-    border-radius: 12px;
+    padding: 8px 6px;
+    border-radius: 10px;
+    gap: 2px;
+    border: none;
+    min-width: 44px;
   }
 
   .topnav-item svg {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .topnav-item.active::after {
+    display: none;
   }
 
   .main-content {
-    padding: calc(var(--topnav-height) + 20px) 16px 80px;
+    padding: calc(50px + 16px) 14px calc(60px + env(safe-area-inset-bottom) + 16px);
+    max-width: 100%;
+  }
+
+  /* Footer needs extra bottom padding to not hide behind bottom nav */
+  .ui-footer {
+    margin-bottom: 8px;
+  }
+
+  .hero-card {
+    padding: 28px 20px;
+    min-height: 180px;
+  }
+
+  .stat-box {
+    padding: 16px;
+  }
+
+  .stat-value-big {
+    font-size: 2rem;
+  }
+
+  .ui-title {
+    font-size: clamp(1.5rem, 4vw, 2.2rem) !important;
+  }
+
+  .ui-sub {
+    font-size: 0.88rem;
+  }
+
+  .ui-card {
+    padding: 20px 16px;
+  }
+
+  .ui-panel {
+    padding: 18px 14px;
+  }
+
+  .ui-cta {
+    padding: 12px 20px;
+    font-size: 0.9rem;
+  }
+
+  .ui-tabs {
+    flex-wrap: wrap;
+    border-radius: 14px;
+  }
+
+  .ui-tab {
+    padding: 7px 12px;
+    font-size: 0.78rem;
+  }
+
+  .ui-divider {
+    margin: 18px 0;
+  }
+
+  .ui-page-head {
+    margin-bottom: 2px;
   }
 }
 

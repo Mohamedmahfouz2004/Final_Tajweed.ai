@@ -109,7 +109,7 @@ export default function ProgressPage() {
                     {/* Summary boxes — 4 columns, single rounded card */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
                       border: '1px solid #DDCDA6',
                       background: '#FFFDF8',
                       borderRadius: 18,

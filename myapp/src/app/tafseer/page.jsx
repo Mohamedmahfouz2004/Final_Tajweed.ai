@@ -249,7 +249,7 @@ function TafseerView() {
             )}
 
             {/* Content */}
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="ui-panel" style={{ padding: 28 }}>
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="ui-panel" style={{ padding: 'clamp(14px, 4vw, 28px)' }}>
                 {loading ? (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '60px 0' }}>
                         <Loader2 size={28} className="animate-spin" style={{ color: 'var(--brass-700)' }} />

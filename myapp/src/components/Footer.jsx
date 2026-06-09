@@ -126,6 +126,13 @@ const Footer = () => (
         text-transform: uppercase;
         opacity: 0.5;
       }
+      @media (max-width: 768px) {
+        .ui-footer { margin-top: 32px; }
+        .ui-footer-card { padding: 28px 18px 22px; }
+        .ui-footer-brand { font-size: 1.4rem; gap: 8px; }
+        .ui-footer-tagline { font-size: 0.8rem; }
+        .ui-footer-links { gap: 16px; }
+      }
     `}</style>
   </motion.footer>
 );

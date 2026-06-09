@@ -351,17 +351,17 @@ export default function LiveMoshafPage() {
             />
 
             {/* Top Bar */}
-            <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{
+            <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 shrink-0" style={{
                 background: 'var(--ink-900)', color: 'var(--parchment-50)',
                 borderBottom: '4px solid var(--brass-500)',
             }}>
-                <button onClick={handleExit} className="ui-btn ui-btn--ghost" style={{ borderColor: 'var(--parchment-50)', color: 'var(--parchment-50)' }} type="button">
-                    <X size={16} /> إنهاء
+                <button onClick={handleExit} className="ui-btn ui-btn--ghost" style={{ borderColor: 'var(--parchment-50)', color: 'var(--parchment-50)', padding: '6px 12px', fontSize: '0.78rem' }} type="button">
+                    <X size={14} /> <span className="hidden sm:inline">إنهاء</span>
                 </button>
 
-                <div style={{ textAlign: 'center' }}>
-                    <h2 style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.6rem', lineHeight: 1, color: 'var(--parchment-50)', margin: 0 }}>{surahName}</h2>
-                    <p style={{ fontSize: '0.72rem', color: 'var(--brass-300)', margin: '6px 0 0', fontFamily: 'Share Tech Mono, monospace', letterSpacing: '0.18em' }}>
+                <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
+                    <h2 style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: 'clamp(1rem, 3.5vw, 1.6rem)', lineHeight: 1, color: 'var(--parchment-50)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{surahName}</h2>
+                    <p style={{ fontSize: 'clamp(0.58rem, 1.8vw, 0.72rem)', color: 'var(--brass-300)', margin: '4px 0 0', fontFamily: 'Share Tech Mono, monospace', letterSpacing: '0.18em' }}>
                       AYAH {fromVerse} → {toVerse}
                     </p>
                 </div>

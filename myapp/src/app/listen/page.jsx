@@ -275,7 +275,7 @@ function ListenView() {
       )}
 
       {/* Mushaf */}
-      <motion.div variants={reveal} className="ui-card" style={{ padding: 32, marginBottom: 24, minHeight: 220 }}>
+      <motion.div variants={reveal} className="ui-card" style={{ padding: 'clamp(16px, 4vw, 32px)', marginBottom: 24, minHeight: 220 }}>
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '50px 0' }}>
             <Loader2 size={26} className="animate-spin" style={{ color: 'var(--brass-700)' }} />

@@ -359,6 +359,22 @@ const SessionResult = ({ onRetry, onContinue }) => {
               }
               .sr-cta-arrow { transition: transform 0.15s ease; }
               .sr-btn-primary:hover .sr-cta-arrow { transform: translateX(-3px); }
+
+              @media (max-width: 640px) {
+                .sr-modal { border-radius: 14px; max-height: 88vh; }
+                .sr-head { padding: 16px 18px 14px; }
+                .sr-title { font-size: 1.3rem !important; }
+                .sr-stat-num { font-size: 1.5rem; }
+                .sr-body { padding: 14px 16px 4px; }
+                .sr-drill { padding: 10px 12px; gap: 10px; }
+                .sr-drill-icon { width: 32px; height: 32px; font-size: 1rem; }
+                .sr-drill-name { font-size: 1.05rem; }
+                .sr-foot { flex-direction: column; gap: 10px; padding: 14px 16px; }
+                .sr-foot-right { width: 100%; display: flex; gap: 8px; }
+                .sr-foot-right > * { flex: 1; justify-content: center; }
+                .sr-btn-ghost { font-size: 0.78rem; padding: 8px 12px; justify-content: center; }
+                .sr-btn-primary { font-size: 0.82rem; padding: 10px 14px; justify-content: center; }
+              }
             `}</style>
 
             <style jsx global>{`

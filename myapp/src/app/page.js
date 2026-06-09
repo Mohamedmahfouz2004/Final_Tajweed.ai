@@ -237,7 +237,7 @@ export default function HomeView() {
         </div>
 
         {/* Divider */}
-        <div style={{ width: '1px', alignSelf: 'stretch', background: 'rgba(212,196,160,0.18)', flexShrink: 0 }} />
+        <div className="hm-hero-divider" style={{ width: '1px', alignSelf: 'stretch', background: 'rgba(212,196,160,0.18)', flexShrink: 0 }} />
 
         {/* Ring — compact aside on the left */}
         <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', paddingInlineStart: '24px' }}>
@@ -674,13 +674,26 @@ export default function HomeView() {
           .hm-skill-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 760px) {
-          .hm-hero { grid-template-columns: 1fr; gap: 26px; padding: 32px 26px; }
+          .hm-hero { flex-direction: column !important; padding: 24px 20px !important; gap: 20px !important; }
+          .hm-hero-divider { display: none !important; }
           .hm-hero-ring { order: -1; }
+          .hm-hero-body { padding-inline-end: 0 !important; }
           .hm-bottom { grid-template-columns: 1fr; }
+          .hm-links { flex-direction: column !important; }
+          .hm-cta-row { justify-content: center; }
+          .hm-cta { width: 100%; justify-content: center; }
+          .hm-ghost { width: 100%; justify-content: center; }
+          .hm-card { padding: 22px 18px 20px; }
+          .hm-card-head { flex-direction: column; gap: 10px; }
+          .hm-focus-wrap { padding: 22px 18px !important; min-height: auto !important; }
+          .hm-verse-text { font-size: 1.6rem !important; }
+          .hm-verse-paren { font-size: 1.8rem !important; }
         }
         @media (max-width: 480px) {
           .hm-skill-grid { grid-template-columns: 1fr; }
-          .hm-hero { padding: 26px 20px; }
+          .hm-hero { padding: 20px 16px !important; }
+          .hm-hero-title { font-size: 1.5rem !important; }
+          .hm-card-title { font-size: 1.4rem !important; }
         }
       `}</style>
     </motion.div>

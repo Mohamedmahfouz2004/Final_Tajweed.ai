@@ -92,6 +92,9 @@ const Navbar = () => {
           filter: drop-shadow(0 4px 10px rgba(200, 150, 62, 0.45));
           transition: transform 0.18s ease, filter 0.18s ease;
         }
+        @media (max-width: 768px) {
+          .brand-logo { height: 28px; }
+        }
         .topnav-brand:hover .brand-logo {
           transform: translateY(-1px) scale(1.03);
           filter: drop-shadow(0 7px 16px rgba(200, 150, 62, 0.6));
