@@ -182,7 +182,7 @@ const useAppStore = create((set, get) => ({
             console.log(`[STORE] Saving batch of ${mistakesArray.length} mistakes at session end.`);
             // Using Promise.all to log all mistakes concurrently
             await Promise.all(mistakesArray.map(m => 
-                fetch(`${API_BASE}/api/progress/log-mistake`, {
+                fetchJsonSafe(`${API_BASE}/api/progress/log-mistake`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -201,7 +201,7 @@ const useAppStore = create((set, get) => ({
             // Refresh stats after batch save
             get().fetchUserProgress();
         } catch (err) {
-            console.error('Failed to batch save session mistakes:', err);
+            console.warn('Failed to batch save session mistakes:', err);
         }
     },
 
@@ -622,6 +622,71 @@ const useAppStore = create((set, get) => ({
         } else {
             showToast('هذه أول آية في المقطع المحدد');
         }
+    },
+
+    // --- Live Moshaf Additions ---
+    moshafSettings: null,
+    setMoshafSettings: (val) => set({ moshafSettings: val }),
+
+    currentSessionId: null,
+    setCurrentSessionId: (val) => set({ currentSessionId: val }),
+    lastSessionMetrics: null,
+    setLastSessionMetrics: (val) => set({ lastSessionMetrics: val }),
+
+    updateLiveMistake: async (errorType, context = {}) => {
+        set((state) => {
+            const currentMistakes = [...state.userProgress.mistakeStats];
+            const existing = currentMistakes.find(m => m.name === errorType);
+
+            if (existing) {
+                existing.count += 1;
+            } else {
+                currentMistakes.push({ name: errorType, count: 1 });
+            }
+
+            return {
+                userProgress: {
+                    ...state.userProgress,
+                    mistakeStats: currentMistakes,
+                    totalMistakes: (state.userProgress.totalMistakes || 0) + 1
+                }
+            };
+        });
+    },
+
+    logSessionActivity: async (activity) => {
+        const token = await get().getToken?.();
+        if (!token) return;
+        try {
+            const data = await fetchJsonSafe(`${API_BASE}/api/sessions/activity`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ ...activity, local_date: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') })
+            });
+            if (data) {
+                console.log(`[SESSION] Activity logged: ${activity.type}`);
+                return data;
+            }
+        } catch (err) {
+            console.warn('[SESSION] Failed to log activity:', err);
+        }
+    },
+
+    fetchSessionAnalytics: async (sessionId) => {
+        try {
+            const { API_BASE, MUAALEM_BASE } = require('../utils/apiConfig');
+            const url = MUAALEM_BASE || 'http://127.0.0.1:8888';
+            const data = await fetchJsonSafe(`${url}/api/session/${sessionId}/analytics`);
+            if (data && !data.error) {
+                return data;
+            }
+        } catch (err) {
+            console.warn('Failed to fetch session analytics:', err);
+        }
+        return null;
     },
 }));
 

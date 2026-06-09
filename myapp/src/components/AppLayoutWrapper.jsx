@@ -64,7 +64,7 @@ export default function AppLayoutWrapper({ children }) {
             <ClerkStoreBridge />
             <SplashScreen show={showSplash} />
             <Toast message={toast} />
-            <VoiceAssistant />
+            {/* <VoiceAssistant /> */}
 
             {/* GLOBAL MODALS */}
             <MistakesModal isOpen={isMistakesModalOpen} onClose={closeMistakesModal} />

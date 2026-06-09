@@ -114,11 +114,12 @@ export default function RootLayout({ children }) {
       lang="ar"
       dir="rtl"
       className={`${ibmPlexArabic.variable} ${rakkas.variable} ${arefRuqaa.variable}`}
+      suppressHydrationWarning
     >
       <head>
         <link rel="icon" href="/favicon.ico" />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <ClerkProvider localization={arSA} appearance={clerkAppearance}>
           <AppLayoutWrapper>{children}</AppLayoutWrapper>
         </ClerkProvider>

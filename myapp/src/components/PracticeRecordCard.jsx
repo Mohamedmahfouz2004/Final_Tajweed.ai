@@ -67,7 +67,7 @@ const PracticeRecordCard = () => {
         : [];
 
     return (
-        <div className="max-w-3xl mx-auto" dir="rtl">
+        <div className="max-w-4xl mx-auto" dir="rtl">
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-6">
@@ -154,7 +154,10 @@ const PracticeRecordCard = () => {
                             <span className="ui-label">من الآية</span>
                             <input
                                 type="number" value={fromVerse} min={1} max={maxAya}
-                                onChange={e => setFromVerse(Math.max(1, Math.min(maxAya, parseInt(e.target.value) || 1)))}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    setFromVerse(val === '' ? '' : Math.min(maxAya, parseInt(val)));
+                                }}
                                 className="ui-input font-num"
                                 style={{ textAlign: 'center', fontSize: '1.2rem', fontWeight: 600 }}
                             />
@@ -162,8 +165,11 @@ const PracticeRecordCard = () => {
                         <div>
                             <span className="ui-label">إلى الآية</span>
                             <input
-                                type="number" value={toVerse} min={fromVerse} max={maxAya}
-                                onChange={e => setToVerse(Math.max(fromVerse, Math.min(maxAya, parseInt(e.target.value) || 1)))}
+                                type="number" value={toVerse} min={fromVerse || 1} max={maxAya}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    setToVerse(val === '' ? '' : Math.min(maxAya, parseInt(val)));
+                                }}
                                 className="ui-input font-num"
                                 style={{ textAlign: 'center', fontSize: '1.2rem', fontWeight: 600 }}
                             />
