@@ -423,68 +423,30 @@ label {
 
 @media (max-width: 768px) {
   .topnav {
-    padding: 0 12px;
-    height: 50px;
+    padding: 0 16px;
+    height: 60px;
+    justify-content: space-between;
   }
 
   .topnav-brand-title {
-    font-size: 1.3rem;
+    font-size: 1.35rem;
+  }
+
+  .hidden-on-mobile {
+    display: none !important;
   }
 
   .topnav-auth {
-    gap: 6px;
-  }
-
-  .topnav-auth .topnav-auth-btn--logout {
-    display: none;
-  }
-
-  .topnav-links {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
-    transform: none;
-    background: var(--topnav-bg);
-    border-top: 1px solid rgba(212, 175, 55, 0.18);
-    display: flex;
-    justify-content: space-around;
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
-    z-index: 200;
-    gap: 0;
-  }
-
-  .topnav-item span {
-    display: none;
-  }
-
-  .topnav-item {
-    flex-direction: column;
-    padding: 8px 6px;
-    border-radius: 10px;
-    gap: 2px;
-    border: none;
-    min-width: 44px;
-  }
-
-  .topnav-item svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  .topnav-item.active::after {
-    display: none;
+    gap: 8px;
   }
 
   .main-content {
-    padding: calc(50px + 16px) 14px calc(60px + env(safe-area-inset-bottom) + 16px);
+    padding: calc(60px + 16px) 14px calc(20px + env(safe-area-inset-bottom));
     max-width: 100%;
   }
 
-  /* Footer needs extra bottom padding to not hide behind bottom nav */
   .ui-footer {
-    margin-bottom: 8px;
+    margin-bottom: 20px;
   }
 
   .hero-card {

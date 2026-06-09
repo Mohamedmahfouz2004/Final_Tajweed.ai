@@ -6,13 +6,18 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Mic,
   GraduationCap, BarChart3, LogIn, BookMarked,
-  Headphones,
+  Headphones, Menu, X
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Show, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
 
 const Navbar = () => {
   const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   const isAdminRoute = pathname?.startsWith('/admin');
   if (isAdminRoute) return null;
@@ -36,8 +41,8 @@ const Navbar = () => {
         </span>
       </Link>
 
-      {/* ── Nav links ── */}
-      <div className="topnav-links">
+      {/* ── Desktop Nav links ── */}
+      <div className="topnav-links hidden-on-mobile">
         {navItems.map((item) => {
           const isActive = item.exact
             ? pathname === item.href
@@ -56,8 +61,10 @@ const Navbar = () => {
         })}
       </div>
 
-      {/* ── Auth ── */}
-      <div className="topnav-auth">
+      {/* ── Right Section (Auth + Mobile Menu Toggle) ── */}
+      <div className="topnav-right">
+        {/* ── Auth ── */}
+        <div className="topnav-auth">
         <motion.div
           animate={{ opacity: [1, 0.25, 1] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
@@ -82,6 +89,67 @@ const Navbar = () => {
           </SignInButton>
         </Show>
       </div>
+
+        {/* Mobile Menu Toggle */}
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setIsMobileMenuOpen(true)}
+          aria-label="Open Menu"
+        >
+          <Menu size={24} />
+        </button>
+      </div>
+
+      {/* ── Mobile Side Drawer ── */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="mobile-drawer-backdrop"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="mobile-drawer"
+            >
+              <div className="mobile-drawer-header">
+                <span className="mobile-drawer-title">القائمة</span>
+                <button
+                  className="mobile-drawer-close"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  aria-label="Close Menu"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="mobile-drawer-links">
+                {navItems.map((item) => {
+                  const isActive = item.exact
+                    ? pathname === item.href
+                    : pathname?.startsWith(item.href);
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`mobile-drawer-item ${isActive ? 'active' : ''}`}
+                    >
+                      <Icon size={20} strokeWidth={isActive ? 2.4 : 1.8} />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <style jsx>{`
         .brand-logo {
@@ -150,6 +218,92 @@ const Navbar = () => {
           height: 6px;
           background: var(--emerald-500);
           box-shadow: 0 0 8px var(--emerald-500);
+        }
+        .topnav-right {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .mobile-menu-btn {
+          display: none;
+          background: transparent;
+          border: none;
+          color: #F0EAD6;
+          cursor: pointer;
+          padding: 4px;
+        }
+        .mobile-drawer-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(13, 17, 11, 0.7);
+          backdrop-filter: blur(4px);
+          z-index: 1000;
+        }
+        .mobile-drawer {
+          position: fixed;
+          top: 0;
+          bottom: 0;
+          right: 0;
+          width: 280px;
+          background: var(--ink-900);
+          border-left: 1px solid rgba(212, 175, 55, 0.2);
+          z-index: 1001;
+          display: flex;
+          flex-direction: column;
+          padding: 24px;
+          box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+        }
+        .mobile-drawer-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 32px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+        }
+        .mobile-drawer-title {
+          font-family: 'Rakkas', cursive;
+          font-size: 1.4rem;
+          color: #D4AF37;
+        }
+        .mobile-drawer-close {
+          background: transparent;
+          border: none;
+          color: #F0EAD6;
+          cursor: pointer;
+          padding: 4px;
+        }
+        .mobile-drawer-links {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .mobile-drawer-item {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 14px 16px;
+          border-radius: 12px;
+          font-family: 'IBM Plex Sans Arabic', sans-serif;
+          font-size: 1.1rem;
+          color: rgba(240, 234, 214, 0.7);
+          text-decoration: none;
+          transition: all 0.2s ease;
+        }
+        .mobile-drawer-item:hover {
+          background: rgba(212, 175, 55, 0.05);
+          color: #F0EAD6;
+        }
+        .mobile-drawer-item.active {
+          background: rgba(212, 175, 55, 0.15);
+          color: #D4AF37;
+          border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        @media (max-width: 768px) {
+          .mobile-menu-btn {
+            display: flex;
+          }
         }
       `}</style>
     </nav>
