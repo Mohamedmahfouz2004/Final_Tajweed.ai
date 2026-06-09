@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { speakArabic, startVoiceCommands, getRouteFromCommand, getPageNameAr } from '../utils/voiceUtils';
 import useAppStore from '../store/useAppStore';
+import { Mic, MicOff } from 'lucide-react';
 
 const VoiceAssistant = () => {
   const router = useRouter();
@@ -30,6 +31,7 @@ const VoiceAssistant = () => {
   ];
 
   const surahListToUse = (surahs && surahs.length > 0) ? surahs : LOCAL_SURAHS;
+  const [isActive, setIsActive] = useState(false);
 
   const recognitionRef = useRef(null);
   const [debugText, setDebugText] = React.useState('');
@@ -235,11 +237,8 @@ const VoiceAssistant = () => {
   });
 
   useEffect(() => {
-    if (isRecording || isPlaying) {
+    if (!isActive || isRecording || isPlaying) {
       if (recognitionRef.current) {
-        if (recognitionRef.current._restartTimeout) {
-          clearTimeout(recognitionRef.current._restartTimeout);
-        }
         recognitionRef.current.onend = null;
         recognitionRef.current.stop();
         recognitionRef.current = null;
@@ -248,15 +247,23 @@ const VoiceAssistant = () => {
     }
 
     if (!recognitionRef.current) {
-      // Errors that are environment/permission related — not actionable, silence them
-      const SILENT_ERRORS = new Set(['audio-capture', 'not-allowed', 'no-speech', 'service-not-allowed']);
-
-      recognitionRef.current = startVoiceCommands((t) => onCommandRef.current(t), (err) => {
-        if (SILENT_ERRORS.has(err)) return; // mic unavailable / no permission — expected
-        console.warn("VoiceAssistant unexpected error:", err);
-      });
+      recognitionRef.current = startVoiceCommands(
+        (t) => {
+          onCommandRef.current(t);
+          // Turn off after a command is received
+          setIsActive(false);
+        },
+        (err) => { 
+          console.error("Voice Error:", err);
+          setIsActive(false);
+        },
+        () => {
+          // Turn off naturally when speech recognition ends (e.g., silence timeout)
+          setIsActive(false);
+        }
+      );
     }
-  }, [isRecording, isPlaying]);
+  }, [isActive, isRecording, isPlaying]);
 
   const lastSpokenPath = useRef('');
 
@@ -278,12 +285,23 @@ const VoiceAssistant = () => {
   }, [pathname]);
 
   return (
-    <div className="fixed bottom-4 left-4 z-[9999] pointer-events-none">
-      {debugText && (
+    <div className="fixed bottom-4 left-4 z-[9999] flex flex-col gap-2 items-start pointer-events-none">
+      {debugText && isActive && (
         <div className="bg-black/60 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-sans border border-white/20 shadow-2xl animate-pulse">
           🎤 {debugText}
         </div>
       )}
+      <button
+        onClick={() => setIsActive(!isActive)}
+        className={`pointer-events-auto flex items-center justify-center w-12 h-12 rounded-full shadow-2xl transition-all duration-300 ${
+          isActive 
+            ? 'bg-gradient-to-r from-red-500 to-red-600 text-white animate-pulse shadow-red-500/50' 
+            : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-md hover:text-[#1B5E3B]'
+        }`}
+        title="تفعيل/تعطيل المساعد الصوتي (المسطرة)"
+      >
+        {isActive ? <Mic size={24} /> : <MicOff size={24} />}
+      </button>
     </div>
   );
 };
