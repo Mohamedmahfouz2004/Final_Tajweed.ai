@@ -127,24 +127,41 @@ const Navbar = () => {
                   <X size={24} />
                 </button>
               </div>
-              <div className="mobile-drawer-links">
+              <motion.div
+                className="mobile-drawer-links"
+                initial="closed"
+                animate="open"
+                exit="closed"
+                variants={{
+                  open: { transition: { staggerChildren: 0.08, delayChildren: 0.1 } },
+                  closed: { transition: { staggerChildren: 0.04, staggerDirection: -1 } }
+                }}
+              >
                 {navItems.map((item) => {
                   const isActive = item.exact
                     ? pathname === item.href
                     : pathname?.startsWith(item.href);
                   const Icon = item.icon;
                   return (
-                    <Link
+                    <motion.div
                       key={item.href}
-                      href={item.href}
-                      className={`mobile-drawer-item ${isActive ? 'active' : ''}`}
+                      variants={{
+                        open: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } },
+                        closed: { opacity: 0, x: 20 }
+                      }}
                     >
-                      <Icon size={20} strokeWidth={isActive ? 2.4 : 1.8} />
-                      <span>{item.label}</span>
-                    </Link>
+                      <Link
+                        href={item.href}
+                        className={`mobile-drawer-item ${isActive ? 'active' : ''}`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <Icon size={20} strokeWidth={isActive ? 2.4 : 1.8} />
+                        <span>{item.label}</span>
+                      </Link>
+                    </motion.div>
                   );
                 })}
-              </div>
+              </motion.div>
             </motion.div>
           </>
         )}
