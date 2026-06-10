@@ -11,43 +11,21 @@ const useAppStore = create((set, get) => ({
     // --- Auth State (synced from Supabase) ---
     isLoggedIn: false,
     currentUser: null,
-    isAdmin: false,
     
     initAuth: () => {
         if (typeof window === 'undefined') return;
         if (!supabase) return;
         
-        const ADMIN_EMAILS = [
-            'mhfwz8889@gmail.com',
-            'tajweed.ai0@gmail.com',
-            'mmah09378@gmail.com'
-        ];
-
-        const checkAdmin = (user) => {
-            if (!user) return false;
-            if (user.user_metadata?.role === 'admin' || user.role === 'admin') return true;
-            if (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) return true;
-            return false;
-        };
-
         // Initial session check
         supabase.auth.getSession().then(({ data: { session } }) => {
-            const user = session?.user || null;
-            set({ 
-                isLoggedIn: !!session, 
-                currentUser: user,
-                isAdmin: checkAdmin(user)
-            });
+            set({ isLoggedIn: !!session, currentUser: session?.user || null });
+            // if (session?.user) get().fetchUserProgress();
         });
 
         // Listen for auth changes (login, logout)
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            const user = session?.user || null;
-            set({ 
-                isLoggedIn: !!session, 
-                currentUser: user,
-                isAdmin: checkAdmin(user)
-            });
+            set({ isLoggedIn: !!session, currentUser: session?.user || null });
+            // if (session?.user) get().fetchUserProgress();
         });
         
         return () => subscription.unsubscribe();
