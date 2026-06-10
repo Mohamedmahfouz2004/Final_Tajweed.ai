@@ -24,6 +24,11 @@ export default function AuthContainer({ initialMode = 'login' }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Forgot password state
+  const [resetStep, setResetStep] = useState(1); // 1: email, 2: OTP, 3: new password
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   
   const router = useRouter();
 
@@ -31,6 +36,19 @@ export default function AuthContainer({ initialMode = 'login' }) {
   useEffect(() => {
     setMode(initialMode);
   }, [initialMode]);
+
+  // Clear fields on mount (in case of logout and reopen)
+  useEffect(() => {
+    setEmail('');
+    setPassword('');
+    setFirstName('');
+    setLastName('');
+    setDobDay('');
+    setDobMonth('');
+    setDobYear('');
+    setConfirmPassword('');
+    setError(null);
+  }, []);
 
   const switchMode = (newMode) => {
     setError(null);
@@ -87,6 +105,52 @@ export default function AuthContainer({ initialMode = 'login' }) {
       setError('البريد الإلكتروني أو كلمة المرور غير صحيحة.');
     } else {
       router.push('/');
+  const handleRequestOTP = async (e) => {
+    e?.preventDefault();
+    if (!email) {
+      setError('يرجى إدخال البريد الإلكتروني.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    if (!supabase) return;
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    setLoading(false);
+    if (error) {
+      setError('حدث خطأ أثناء إرسال الرابط. تأكد من أن البريد مسجل لدينا.');
+    } else {
+      setResetStep(2);
+    }
+  };
+
+  const handleVerifyOTP = async (e) => {
+    e?.preventDefault();
+    if (!otp) return setError('يرجى إدخال كود التحقق.');
+    setLoading(true); setError(null);
+    const { error } = await supabase.auth.verifyOtp({ email, token: otp, type: 'recovery' });
+    setLoading(false);
+    if (error) {
+      setError('الكود غير صحيح أو منتهي الصلاحية.');
+    } else {
+      setResetStep(3);
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    e?.preventDefault();
+    if (!isNewPasswordValid) return setError('يرجى استيفاء شروط كلمة المرور.');
+    setLoading(true); setError(null);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setLoading(false);
+    if (error) {
+      setError(error.message);
+    } else {
+      alert('تم تغيير كلمة المرور بنجاح! يمكنك الآن تسجيل الدخول.');
+      switchMode('login');
+      setResetStep(1);
+      setPassword('');
+      setNewPassword('');
+      setOtp('');
     }
   };
 
@@ -97,6 +161,14 @@ export default function AuthContainer({ initialMode = 'login' }) {
     special: /[^A-Za-z0-9]/.test(password),
   };
   const isPasswordValid = Object.values(criteria).every(Boolean);
+
+  const resetCriteria = {
+    length: newPassword.length >= 8,
+    uppercase: /[A-Z]/.test(newPassword),
+    number: /[0-9]/.test(newPassword),
+    special: /[^A-Za-z0-9]/.test(newPassword),
+  };
+  const isNewPasswordValid = Object.values(resetCriteria).every(Boolean);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -239,7 +311,7 @@ export default function AuthContainer({ initialMode = 'login' }) {
                         </div>
                       </label>
 
-                      <button type="button" className="auth-inline-link !text-[#1B5E3B] hover:!text-[#0A3527]">
+                      <button type="button" onClick={() => { switchMode('forgot'); setResetStep(1); setError(null); }} className="auth-inline-link !text-[#1B5E3B] hover:!text-[#0A3527]">
                         نسيت كلمة المرور؟
                       </button>
 
@@ -388,6 +460,88 @@ export default function AuthContainer({ initialMode = 'login' }) {
 
                     <div className="auth-footer-action">
                       <p>لديك حساب بالفعل؟ <button type="button" onClick={() => switchMode('login')} className="text-[#1B5E3B] hover:text-[#0A3527] font-bold" style={{background:'none', border:'none', padding:0, cursor:'pointer'}}>تسجيل الدخول</button></p>
+                    </div>
+                  </motion.div>
+                ) : mode === 'forgot' ? (
+                  <motion.div
+                    key="forgot"
+                    custom={direction}
+                    variants={formVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    className="auth-view-stack w-full"
+                  >
+                    <div className="auth-heading text-center w-full" style={{ alignItems: 'center', marginBottom: '16px' }}>
+                      <h2 className="text-[#1C1208] text-center">استعادة كلمة المرور</h2>
+                      <p className="text-center">
+                        {resetStep === 1 ? 'أدخل بريدك الإلكتروني لاستلام كود التحقق' : resetStep === 2 ? 'أدخل كود التحقق المرسل لبريدك' : 'أدخل كلمة المرور الجديدة'}
+                      </p>
+                    </div>
+
+                    {error && <div className="auth-alert error">{error}</div>}
+
+                    {resetStep === 1 && (
+                      <form onSubmit={handleRequestOTP} className="auth-form w-full" noValidate>
+                        <label className={`auth-field ${email ? 'has-value' : ''}`}>
+                          <div>
+                            <Mail size={19} color="#8A958D" />
+                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder=" " dir="ltr" />
+                            <span className="auth-floating-label">البريد الإلكتروني</span>
+                          </div>
+                        </label>
+                        <button type="submit" className="auth-submit-button" style={{ background: '#1B5E3B' }} disabled={loading || !email}>
+                          {loading ? <Loader2 className="animate-spin" size={18} /> : 'إرسال كود التحقق'}
+                        </button>
+                      </form>
+                    )}
+
+                    {resetStep === 2 && (
+                      <form onSubmit={handleVerifyOTP} className="auth-form w-full" noValidate>
+                        <label className={`auth-field ${otp ? 'has-value' : ''}`}>
+                          <div>
+                            <Lock size={19} color="#8A958D" />
+                            <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder=" " dir="ltr" maxLength={6} style={{ letterSpacing: '8px', textAlign: 'center', fontWeight: 'bold' }} />
+                            <span className="auth-floating-label">كود التحقق (6 أرقام)</span>
+                          </div>
+                        </label>
+                        <button type="submit" className="auth-submit-button" style={{ background: '#1B5E3B' }} disabled={loading || !otp}>
+                          {loading ? <Loader2 className="animate-spin" size={18} /> : 'تأكيد الكود'}
+                        </button>
+                      </form>
+                    )}
+
+                    {resetStep === 3 && (
+                      <form onSubmit={handleUpdatePassword} className="auth-form w-full" noValidate>
+                        <label className={`auth-field ${newPassword ? 'has-value' : ''}`}>
+                          <div>
+                            <Lock size={19} color="#8A958D" />
+                            <input type={showPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder=" " dir="ltr" />
+                            <span className="auth-floating-label">كلمة المرور الجديدة</span>
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label="إظهار أو إخفاء كلمة المرور">
+                              {showPassword ? <EyeOff size={18} color="#8A958D" /> : <Eye size={18} color="#8A958D" />}
+                            </button>
+                          </div>
+                        </label>
+
+                        {newPassword.length > 0 && (
+                          <div className="bg-gray-50 p-3 rounded-lg text-xs space-y-1.5 border border-gray-200 mt-[-6px]" dir="rtl">
+                            <p className="font-semibold text-gray-600 mb-2">يجب أن تحتوي كلمة المرور على:</p>
+                            <div className={`flex items-center gap-2 ${resetCriteria.length ? 'text-green-600' : 'text-gray-500'}`}><span className="text-sm">{resetCriteria.length ? '✓' : '○'}</span><span>8 أحرف على الأقل</span></div>
+                            <div className={`flex items-center gap-2 ${resetCriteria.uppercase ? 'text-green-600' : 'text-gray-500'}`}><span className="text-sm">{resetCriteria.uppercase ? '✓' : '○'}</span><span>حرف إنجليزي كبير (A-Z)</span></div>
+                            <div className={`flex items-center gap-2 ${resetCriteria.number ? 'text-green-600' : 'text-gray-500'}`}><span className="text-sm">{resetCriteria.number ? '✓' : '○'}</span><span>رقم واحد على الأقل (0-9)</span></div>
+                            <div className={`flex items-center gap-2 ${resetCriteria.special ? 'text-green-600' : 'text-gray-500'}`}><span className="text-sm">{resetCriteria.special ? '✓' : '○'}</span><span>رمز مميز (!@#$%^&*)</span></div>
+                          </div>
+                        )}
+
+                        <button type="submit" className="auth-submit-button" style={{ background: '#1B5E3B' }} disabled={loading || !isNewPasswordValid}>
+                          {loading ? <Loader2 className="animate-spin" size={18} /> : 'تحديث كلمة المرور'}
+                        </button>
+                      </form>
+                    )}
+
+                    <div className="auth-footer-action mt-6">
+                      <p><button type="button" onClick={() => switchMode('login')} className="text-[#1C1208] hover:text-[#0A3527] font-bold" style={{background:'none', border:'none', padding:0, cursor:'pointer'}}>العودة لتسجيل الدخول</button></p>
                     </div>
                   </motion.div>
                 )}
