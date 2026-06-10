@@ -307,7 +307,6 @@ label {
   padding: 1rem;
   max-width: 1400px;
   margin: 0 auto;
-  overflow-y: auto;
 }
 
 @media (min-width: 768px) {

@@ -1,7 +1,5 @@
 import "./globals.css";
 import { IBM_Plex_Sans_Arabic, Rakkas, Aref_Ruqaa } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
-import { arSA } from "@clerk/localizations";
 import AppLayoutWrapper from "../components/AppLayoutWrapper";
 
 // Brutalist Arabic theme for Clerk's sign-in / sign-up UI, matching the site.
@@ -136,9 +134,7 @@ export default function RootLayout({ children }) {
         <link rel="icon" href="/favicon.ico" />
       </head>
       <body suppressHydrationWarning>
-        <ClerkProvider localization={arSA} appearance={clerkAppearance}>
-          <AppLayoutWrapper>{children}</AppLayoutWrapper>
-        </ClerkProvider>
+        <AppLayoutWrapper>{children}</AppLayoutWrapper>
       </body>
     </html>
   );

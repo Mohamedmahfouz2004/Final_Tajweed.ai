@@ -4,16 +4,36 @@ import { generateInitialProgress } from '../utils/data';
 import audioService from '../utils/audioService';
 import { SURAH_LIST } from '../utils/surahNames';
 import { API_BASE, fetchJsonSafe } from '../utils/apiConfig';
+import { supabase } from '../utils/supabaseClient';
 
 
 const useAppStore = create((set, get) => ({
-    // --- Auth State (synced from Clerk via ClerkStoreBridge) ---
+    // --- Auth State (synced from Supabase) ---
     isLoggedIn: false,
     currentUser: null,
-    // Async getter for a fresh Clerk session JWT; set by ClerkStoreBridge.
-    getToken: null,
-    // Opens the Clerk sign-in modal; set by ClerkStoreBridge.
-    requireAuth: () => {},
+    
+    initAuth: () => {
+        if (typeof window === 'undefined') return;
+        
+        // Initial session check
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            set({ isLoggedIn: !!session, currentUser: session?.user || null });
+            // if (session?.user) get().fetchUserProgress();
+        });
+
+        // Listen for auth changes (login, logout)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            set({ isLoggedIn: !!session, currentUser: session?.user || null });
+            // if (session?.user) get().fetchUserProgress();
+        });
+        
+        return () => subscription.unsubscribe();
+    },
+
+    // Opens the sign-in page if not authenticated
+    requireAuth: () => {
+        if (typeof window !== 'undefined') window.location.href = '/login';
+    },
 
 
     // --- UI State ---
@@ -51,6 +71,80 @@ const useAppStore = create((set, get) => ({
         mistakeStats: [],
         completedLessons: 0,
         completedLessonsList: []
+    },
+
+    // --- Adaptive Data ---
+    dailyPlaylist: null,
+    masteryRadar: null,
+
+    fetchAdaptiveData: async () => {
+        const token = await get().getToken?.();
+        if (!token) return;
+
+        try {
+            const [playlistRes, radarRes] = await Promise.all([
+                fetch(`${API_BASE}/api/adaptive/daily-playlist`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch(`${API_BASE}/api/adaptive/mastery-radar`, { headers: { 'Authorization': `Bearer ${token}` } })
+            ]);
+
+            if (playlistRes.ok) {
+                const playlistData = await playlistRes.json();
+                if (playlistData.success) set({ dailyPlaylist: playlistData.data });
+            }
+
+            if (radarRes.ok) {
+                const radarData = await radarRes.json();
+                if (radarData.success) set({ masteryRadar: radarData.data });
+            }
+        } catch (err) {
+            console.error('[STORE] Failed to fetch adaptive data:', err);
+        }
+    },
+
+    // --- Daily Sessions System ---
+    todaySession: null,
+    sessionsList: [],
+    sessionsSummary: null,
+    sessionsPagination: null,
+
+    fetchSessionsList: async (from, to) => {
+        const token = await get().getToken?.();
+        if (!token) return;
+        try {
+            let url = `${API_BASE}/api/sessions/list`;
+            const params = [];
+            if (from) params.push(`from=${from}`);
+            if (to) params.push(`to=${to}`);
+            if (params.length) url += '?' + params.join('&');
+
+            const res = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                set({ sessionsList: data.sessions });
+                return data;
+            }
+        } catch (err) {
+            console.error('[SESSION] Failed to fetch sessions list:', err);
+        }
+    },
+
+    fetchSessionsSummary: async () => {
+        const token = await get().getToken?.();
+        if (!token) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/sessions/summary`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                set({ sessionsSummary: data });
+                return data;
+            }
+        } catch (err) {
+            console.error('[SESSION] Failed to fetch sessions summary:', err);
+        }
     },
 
     // --- Data Actions ---

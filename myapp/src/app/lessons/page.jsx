@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Lock } from 'lucide-react';
 import LessonCard from '../../components/LessonCard';
 import useAppStore from '../../store/useAppStore';
 
@@ -15,20 +15,22 @@ const reveal  = {
 
 export default function LessonsPage() {
     const router = useRouter();
-    const isLoggedIn = useAppStore(s => s.isLoggedIn);
-    const requireAuth = useAppStore(s => s.requireAuth);
     const lessons = useAppStore(s => s.lessons);
     const fetchLessons = useAppStore(s => s.fetchLessons);
     const userProgress = useAppStore(s => s.userProgress);
     const fetchUserProgress = useAppStore(s => s.fetchUserProgress);
+    const isLoggedIn = useAppStore(s => s.isLoggedIn);
+    const openAuthModal = useAppStore(s => s.openAuthModal);
 
     React.useEffect(() => {
         fetchLessons();
-        if (isLoggedIn) fetchUserProgress();
-    }, [isLoggedIn, fetchLessons, fetchUserProgress]);
+        if (isLoggedIn) {
+            fetchUserProgress();
+        }
+    }, [fetchLessons, fetchUserProgress, isLoggedIn]);
 
     return (
-        <motion.div variants={stagger} initial="hidden" animate="show">
+        <motion.div variants={stagger} initial="hidden" animate="show" style={{ maxWidth: '1040px', margin: '0 auto', width: '100%' }}>
             <motion.div variants={reveal}>
                 <span className="ui-eyebrow">
                   <span className="num">03</span> &nbsp;//&nbsp; INTERACTIVE LIBRARY
@@ -37,36 +39,32 @@ export default function LessonsPage() {
                 <p className="ui-sub">
                   شروحات تفاعلية ومتدرّجة لأحكام التجويد بصيغة سهلة الفهم.
                 </p>
+
+                {!isLoggedIn && (
+                    <div className="mt-6 border rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4" style={{ backgroundColor: '#FFFDF8', borderColor: '#DDCDA6', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 rounded-full" style={{ backgroundColor: 'rgba(212, 175, 55, 0.15)', color: '#D4AF37' }}>
+                                <Lock size={22} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-[15px]" style={{ color: 'var(--ink-900)', fontFamily: 'var(--font-ibm)' }}>سجل دخولك لتتمكن من المشاهدة</h3>
+                                <p className="text-xs mt-1" style={{ color: 'var(--ink-600)', fontFamily: 'var(--font-ibm)' }}>يجب عليك تسجيل الدخول للوصول إلى محتوى الدروس والاختبارات التفاعلية.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={openAuthModal}
+                            className="px-6 py-2.5 text-sm rounded-lg font-bold transition-all w-full sm:w-auto"
+                            style={{ backgroundColor: '#1E3B22', color: '#FBF7EF', fontFamily: 'var(--font-ibm)' }}
+                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#152918'}
+                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#1E3B22'}
+                        >
+                            تسجيل الدخول
+                        </button>
+                    </div>
+                )}
             </motion.div>
 
             <div className="ui-divider" aria-hidden />
-
-            {!isLoggedIn && (
-                <motion.div variants={reveal} className="ui-panel ui-panel--dark mb-6"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                        <div style={{
-                            width: 40, height: 40, background: 'var(--brass-500)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: '0 10px 22px -10px rgba(15,26,13,0.35)', flexShrink: 0,
-                        }}>
-                            <BookOpen size={20} color="var(--ink-900)" strokeWidth={2.2} />
-                        </div>
-                        <div>
-                            <div style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.3rem', lineHeight: 1 }}>
-                              سجّل دخولك لتتمكن من المشاهدة
-                            </div>
-                            <div style={{ color: 'rgba(245,239,227,0.7)', fontSize: '0.84rem', marginTop: 4 }}>
-                              يجب تسجيل الدخول للوصول إلى محتوى الدروس والاختبارات.
-                            </div>
-                        </div>
-                    </div>
-                    <button onClick={requireAuth} className="ui-cta" type="button"
-                        style={{ background: 'var(--brass-500)', color: 'var(--ink-900)' }}>
-                        تسجيل الدخول
-                    </button>
-                </motion.div>
-            )}
 
             <motion.div variants={reveal} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {lessons.length > 0 ? (
@@ -79,9 +77,11 @@ export default function LessonsPage() {
                                     index={idx}
                                     isCompleted={isCompleted}
                                     onSelect={() => {
-                                        const { isLoggedIn, requireAuth } = useAppStore.getState();
-                                        if (!isLoggedIn) requireAuth();
-                                        else router.push(`/lessons/${lesson._id}`);
+                                        if (!isLoggedIn) {
+                                            openAuthModal();
+                                        } else {
+                                            router.push(`/lessons/${lesson._id}`);
+                                        }
                                     }}
                                 />
                             </motion.div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mic, Square, Activity, Clock, Layers, X, BookOpen, Info } from 'lucide-react';
 import useAppStore from '../../store/useAppStore';
+import AuthGuard from '../../components/AuthGuard';
 import UthmaniViewer from '../../components/UthmaniViewer';
 import MushafRevealEngine from '../../components/mushaf/MushafRevealEngine';
 import { REVEAL_MODES } from '../../hooks/useMushafReveal';
@@ -687,4 +688,14 @@ const LiveMoshafView = () => {
     );
 };
 
-export default LiveMoshafView;
+export default function LiveMoshafPage() {
+    return (
+        <AuthGuard
+            title="المصحف المباشر"
+            subtitle="سجّل دخولك عشان تقدر تسجل تلاوتك وتاخد تحليل فوري من محرك التجويد."
+            icon={<Mic size={36} strokeWidth={2} />}
+        >
+            <LiveMoshafView />
+        </AuthGuard>
+    );
+}

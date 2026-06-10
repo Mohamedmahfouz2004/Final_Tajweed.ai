@@ -11,7 +11,6 @@ import Footer from './Footer';
 import Navbar from './Navbar';
 import MistakesModal from './MistakesModal';
 import VoiceAssistant from './VoiceAssistant';
-import ClerkStoreBridge from './ClerkStoreBridge';
 
 export default function AppLayoutWrapper({ children }) {
     const [mounted, setMounted] = useState(false);
@@ -23,11 +22,15 @@ export default function AppLayoutWrapper({ children }) {
     const isMistakesModalOpen = useAppStore(s => s.isMistakesModalOpen);
     const closeMistakesModal = useAppStore(s => s.closeMistakesModal);
     const setSurahs = useAppStore(s => s.setSurahs);
+    const initAuth = useAppStore(s => s.initAuth);
 
     const pathname = usePathname();
     const isAdminPath = pathname?.startsWith('/admin');
 
     useEffect(() => {
+        // Initialize Supabase Auth Listener
+        const cleanupAuth = initAuth();
+
         // Flip the hydration guard after paint rather than synchronously in the effect.
         const raf = requestAnimationFrame(() => setMounted(true));
         const timer = setTimeout(() => { hideSplash(); }, 2500);
@@ -47,8 +50,12 @@ export default function AppLayoutWrapper({ children }) {
             })
             .catch(err => console.error("Error fetching chapters:", err));
 
-        return () => { cancelAnimationFrame(raf); clearTimeout(timer); };
-    }, [hideSplash, setSurahs]);
+        return () => { 
+            cancelAnimationFrame(raf); 
+            clearTimeout(timer); 
+            if (cleanupAuth) cleanupAuth();
+        };
+    }, [hideSplash, setSurahs, initAuth]);
 
     // Prevent hydration mismatch
     if (!mounted) {
@@ -61,7 +68,6 @@ export default function AppLayoutWrapper({ children }) {
 
     return (
         <div className="app-layout">
-            <ClerkStoreBridge />
             <SplashScreen show={showSplash} />
             <Toast message={toast} />
             {/* <VoiceAssistant /> */}
@@ -82,8 +88,8 @@ export default function AppLayoutWrapper({ children }) {
                         {children}
                     </Suspense>
                 </div>
-                {!isAdminPath && <Footer />}
             </main>
+            {!isAdminPath && <Footer />}
         </div>
     );
 }

@@ -6,15 +6,32 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Mic,
   GraduationCap, BarChart3, LogIn, BookMarked,
-  Headphones, Menu, X
+  Headphones, Menu, X, User
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Show, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
+import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
+import useAppStore from '../store/useAppStore';
+import { supabase } from '../utils/supabaseClient';
+import { useRouter } from 'next/navigation';
 
 const Navbar = () => {
   const pathname = usePathname();
+  const router = useRouter();
+  const isLoggedIn = useAppStore(state => state.isLoggedIn);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(false);
+  const [isVisible, setIsVisible] = React.useState(true);
+
+  // Robust scroll detection using Framer Motion
+  const { scrollY } = useScroll();
+  useMotionValueEvent(scrollY, "change", (latest) => {
+    const previous = scrollY.getPrevious();
+    if (latest > previous && latest > 50) {
+      setIsVisible(false); // scrolling down
+    } else {
+      setIsVisible(true);  // scrolling up
+    }
+  });
 
   React.useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768);
@@ -33,16 +50,21 @@ const Navbar = () => {
   const navItems = [
     { href: '/',         label: 'الرئيسية',     icon: LayoutDashboard, exact: true },
     { href: '/listen',   label: 'استماع',   icon: Headphones },
-    { href: '/practice', label: 'تلاوة', icon: Mic },
+    { href: '/practice', label: 'التسميع', icon: Mic },
     { href: '/lessons',  label: 'دروس',  icon: GraduationCap },
-    { href: '/progress', label: 'إحصائيات',    icon: BarChart3 },
     { href: '/tafseer',  label: 'تفسير',  icon: BookMarked },
+    { href: '/progress', label: 'إحصائيات',    icon: BarChart3 },
   ];
 
   return (
     <>
       {/* ═══════════ TOP NAVBAR ═══════════ */}
-      <nav className="topnav">
+      <nav 
+        className="topnav"
+        style={{ 
+          transform: isVisible ? 'translateY(0)' : 'translateY(-100%)',
+        }}
+      >
 
         {/* Mobile: Hamburger */}
         {isMobile && (
@@ -106,31 +128,129 @@ const Navbar = () => {
           className="topnav-auth"
           style={isMobile ? { flex: 1, justifyContent: 'flex-end', order: 3 } : {}}
         >
-          <motion.div
-            animate={{ opacity: [1, 0.25, 1] }}
-            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }}
-            aria-hidden
-          />
 
-          <Show when="signed-in">
-            <UserButton afterSignOutUrl="/" />
-          </Show>
-          <Show when="signed-out">
-            {!isMobile && (
-              <SignUpButton mode="modal">
-                <button className="topnav-auth-btn topnav-auth-btn--logout" type="button">
-                  <span>SIGN&nbsp;UP</span>
-                </button>
-              </SignUpButton>
-            )}
-            <SignInButton mode="modal">
-              <button className="topnav-auth-btn topnav-auth-btn--login" type="button">
-                <LogIn size={13} />
-                {!isMobile && <span>LOG&nbsp;IN</span>}
+          {isLoggedIn ? (
+            <div style={{ position: 'relative' }}>
+              <button 
+                title="الحساب"
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  background: 'rgba(212, 175, 55, 0.15)',
+                  border: '1px solid rgba(212, 175, 55, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#D4AF37',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(212, 175, 55, 0.25)' }}
+                onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(212, 175, 55, 0.15)' }}
+              >
+                <User size={18} />
               </button>
-            </SignInButton>
-          </Show>
+
+              <AnimatePresence>
+                {isProfileMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    style={{
+                      position: 'absolute',
+                      top: '48px',
+                      left: 0,
+                      minWidth: '160px',
+                      background: 'var(--surface)',
+                      border: '1px solid rgba(212, 175, 55, 0.2)',
+                      borderRadius: '12px',
+                      padding: '8px',
+                      boxShadow: '0 12px 30px rgba(0,0,0,0.4)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      zIndex: 100
+                    }}
+                  >
+                    <Link 
+                      href="/profile"
+                      onClick={() => setIsProfileMenuOpen(false)}
+                      style={{
+                        padding: '10px 14px',
+                        color: 'var(--light-text)',
+                        textDecoration: 'none',
+                        fontSize: '14px',
+                        fontFamily: "'IBM Plex Sans Arabic', sans-serif",
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        transition: 'background 0.2s ease'
+                      }}
+                      onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                      onMouseOut={(e) => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      <User size={16} />
+                      حسابي
+                    </Link>
+                    <button 
+                      onClick={async () => {
+                        setIsProfileMenuOpen(false);
+                        await supabase.auth.signOut();
+                        router.push('/');
+                      }}
+                      style={{
+                        padding: '10px 14px',
+                        color: '#EF4444',
+                        background: 'transparent',
+                        border: 'none',
+                        textAlign: 'right',
+                        fontSize: '14px',
+                        fontFamily: "'IBM Plex Sans Arabic', sans-serif",
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s ease'
+                      }}
+                      onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)' }}
+                      onMouseOut={(e) => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      <LogIn size={16} style={{ transform: 'rotate(180deg)' }} />
+                      تسجيل الخروج
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <Link 
+              href="/register" 
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                background: 'linear-gradient(135deg, #D4AF37 0%, #F1E6CA 100%)',
+                color: '#1F2A24',
+                padding: isMobile ? '6px 14px' : '8px 20px',
+                borderRadius: '999px',
+                fontFamily: "'IBM Plex Sans Arabic', sans-serif",
+                fontSize: isMobile ? '13px' : '14px',
+                fontWeight: '700',
+                textDecoration: 'none',
+                boxShadow: '0 4px 12px rgba(212, 175, 55, 0.3)',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(212, 175, 55, 0.45)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(212, 175, 55, 0.3)'; }}
+            >
+              انضم إلينا
+            </Link>
+          )}
         </div>
 
         <style jsx>{`
