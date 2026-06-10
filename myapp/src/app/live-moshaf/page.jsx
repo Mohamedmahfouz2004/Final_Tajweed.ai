@@ -11,7 +11,7 @@ import MushafRevealEngine from '../../components/mushaf/MushafRevealEngine';
 import { REVEAL_MODES } from '../../hooks/useMushafReveal';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import { getSimpleErrorMessage, TAJWEED_ERROR_MESSAGES } from '../../utils/tajweedErrors';
-import { WS_BASE } from '../../utils/apiConfig';
+import { WS_BASE, MUAALEM_BASE } from '../../utils/apiConfig';
 
 // Use direct connection if on localhost to bypass Localtunnel warning pages
 const MUAALEM_WS_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -541,12 +541,22 @@ const LiveMoshafView = () => {
                                         </div>
                                         <p className="font-bold text-red-600 mb-2">خطأ في الاتصال</p>
                                         <p className="text-sm text-center text-red-500/80">{connectionError}</p>
-                                        <button 
-                                            onClick={() => { setConnectionError(null); connectWs(); }}
-                                            className="mt-6 px-6 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl transition-colors font-bold text-sm border-none cursor-pointer"
-                                        >
-                                            إعادة المحاولة
-                                        </button>
+                                        <div className="flex flex-col gap-3 mt-6">
+                                            <a 
+                                                href={MUAALEM_BASE}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="px-6 py-2 bg-[#044D29] hover:bg-[#066b3b] text-white rounded-xl transition-colors font-bold text-sm text-center no-underline"
+                                            >
+                                                1. تنشيط الخادم (اضغط للذهاب لصفحة تخطي الحماية)
+                                            </a>
+                                            <button 
+                                                onClick={() => { setConnectionError(null); connectWs(); }}
+                                                className="px-6 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl transition-colors font-bold text-sm border-none cursor-pointer"
+                                            >
+                                                2. إعادة المحاولة بعد التنشيط
+                                            </button>
+                                        </div>
                                     </>
                                 ) : (
                                     <>
