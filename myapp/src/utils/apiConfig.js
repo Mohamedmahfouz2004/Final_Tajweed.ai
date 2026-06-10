@@ -12,7 +12,7 @@
  */
 
 let API_BASE     = process.env.NEXT_PUBLIC_API_URL     || 'https://neat-cougars-glow.loca.lt';
-let MUAALEM_BASE = process.env.NEXT_PUBLIC_MUAALEM_URL || 'https://tajweed-eltmsa7-ai.loca.lt';
+let MUAALEM_BASE = process.env.NEXT_PUBLIC_MUAALEM_URL || 'https://tajweed-eltmsa7-v1.loca.lt';
 
 if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     API_BASE = 'http://127.0.0.1:8000';
@@ -30,9 +30,13 @@ const WS_BASE = WS_HTTP.replace(/^http/, 'ws');
  * logged with console.warn — not console.error — so an offline backend in dev does
  * not trip the Next.js error overlay.
  */
-async function fetchJsonSafe(url, options, fallback = null) {
+async function fetchJsonSafe(url, options = {}, fallback = null) {
     try {
-        const res = await fetch(url, options);
+        const headers = {
+            'Bypass-Tunnel-Reminder': 'true',
+            ...(options.headers || {})
+        };
+        const res = await fetch(url, { ...options, headers });
         if (!res.ok) {
             console.warn(`[api] ${res.status} ${res.statusText} — ${url}`);
             return fallback;
