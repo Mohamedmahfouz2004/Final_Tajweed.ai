@@ -12,7 +12,7 @@
  */
 
 let API_BASE     = process.env.NEXT_PUBLIC_API_URL     || 'https://neat-cougars-glow.loca.lt';
-let MUAALEM_BASE = process.env.NEXT_PUBLIC_MUAALEM_URL || 'https://tajweed-eltmsa7-v1.loca.lt';
+let MUAALEM_BASE = process.env.NEXT_PUBLIC_MUAALEM_URL || 'https://voice-plus-twisty.ngrok-free.dev';
 
 if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search);
@@ -45,6 +45,7 @@ async function fetchJsonSafe(url, options = {}, fallback = null) {
     try {
         const headers = {
             'Bypass-Tunnel-Reminder': 'true',
+            'ngrok-skip-browser-warning': 'true',
             ...(options.headers || {})
         };
         const res = await fetch(url, { ...options, headers });
