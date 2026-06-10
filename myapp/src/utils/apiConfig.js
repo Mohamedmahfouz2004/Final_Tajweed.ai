@@ -14,9 +14,20 @@
 let API_BASE     = process.env.NEXT_PUBLIC_API_URL     || 'https://neat-cougars-glow.loca.lt';
 let MUAALEM_BASE = process.env.NEXT_PUBLIC_MUAALEM_URL || 'https://tajweed-eltmsa7-v1.loca.lt';
 
-if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    API_BASE = 'http://127.0.0.1:8000';
-    MUAALEM_BASE = 'http://127.0.0.1:8888';
+if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('localtunnel')) {
+        localStorage.setItem('localtunnel_url', params.get('localtunnel'));
+    }
+    const savedUrl = localStorage.getItem('localtunnel_url');
+    if (savedUrl) {
+        MUAALEM_BASE = savedUrl;
+    }
+
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        API_BASE = 'http://127.0.0.1:8000';
+        MUAALEM_BASE = 'http://127.0.0.1:8888';
+    }
 }
 
 // Live recitation WebSocket → Muaalem's native /ws/stream (override with NEXT_PUBLIC_WS_URL).
