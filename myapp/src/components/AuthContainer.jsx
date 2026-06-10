@@ -109,7 +109,7 @@ export default function AuthContainer({ initialMode = 'login' }) {
     setLoading(true);
     const formattedDobForDB = `${dobYear}-${dobMonth}-${dobDay}`;
     if (!supabase) return;
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -122,8 +122,13 @@ export default function AuthContainer({ initialMode = 'login' }) {
       }
     });
     setLoading(false);
+    
     if (error) {
       setError(error.message);
+    } else if (data && !data.session) {
+      // Supabase returns no session and no error if the email already exists, 
+      // or if Email Confirmation is still required.
+      setError('هذا البريد الإلكتروني مسجل بالفعل، أو يرجى مراجعة بريدك لتفعيل الحساب.');
     } else {
       router.push('/'); 
     }
