@@ -68,6 +68,7 @@ export default function AuthContainer({ initialMode = 'login' }) {
   };
 
   const handleOAuthLogin = async (provider) => {
+    if (!supabase) return;
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo: `${window.location.origin}/` }
@@ -79,6 +80,7 @@ export default function AuthContainer({ initialMode = 'login' }) {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    if (!supabase) return;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
@@ -106,6 +108,7 @@ export default function AuthContainer({ initialMode = 'login' }) {
 
     setLoading(true);
     const formattedDobForDB = `${dobYear}-${dobMonth}-${dobDay}`;
+    if (!supabase) return;
     const { error } = await supabase.auth.signUp({
       email,
       password,

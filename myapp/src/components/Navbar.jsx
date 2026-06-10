@@ -200,7 +200,7 @@ const Navbar = () => {
                     <button 
                       onClick={async () => {
                         setIsProfileMenuOpen(false);
-                        await supabase.auth.signOut();
+                        if (supabase) await supabase.auth.signOut();
                         router.push('/');
                       }}
                       style={{

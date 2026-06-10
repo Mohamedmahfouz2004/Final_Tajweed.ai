@@ -14,6 +14,7 @@ const useAppStore = create((set, get) => ({
     
     initAuth: () => {
         if (typeof window === 'undefined') return;
+        if (!supabase) return;
         
         // Initial session check
         supabase.auth.getSession().then(({ data: { session } }) => {
