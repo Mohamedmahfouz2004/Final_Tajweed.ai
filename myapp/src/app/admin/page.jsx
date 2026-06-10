@@ -4,29 +4,32 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit2, Trash2, Video, BookOpen, AlertCircle, Save, X, LogOut, ShieldCheck, Users, BarChart3, UserCog, Crown, HelpCircle, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useUser, useClerk } from '@clerk/nextjs';
 import useAppStore from '../../store/useAppStore';
 import { fadeInUp } from '../../utils/animations';
 import { API_BASE } from '../../utils/apiConfig';
+import { supabase } from '../../utils/supabaseClient';
 
 export default function AdminDashboardPage() {
     const router = useRouter();
     const {
         lessons, fetchLessons, addLesson, updateLesson, deleteLesson,
-        currentUser,
+        currentUser, isLoggedIn,
         adminStats, fetchAdminStats,
         adminUsers, fetchAdminUsers, updateUserRole, deleteUser,
         addQuiz, deleteQuiz
     } = useAppStore();
 
-    const { isLoaded, isSignedIn, user } = useUser();
-    const { signOut } = useClerk();
-    const isAdmin = user?.publicMetadata?.role === 'admin';
+    // In Supabase, custom metadata is often in user_metadata or app_metadata
+    const isAdmin = currentUser?.user_metadata?.role === 'admin' || currentUser?.role === 'admin';
 
     // Gate: only signed-in admins may view this page.
     useEffect(() => {
-        if (isLoaded && (!isSignedIn || !isAdmin)) router.replace('/');
-    }, [isLoaded, isSignedIn, isAdmin, router]);
+        // Wait a small tick to allow auth to hydrate, though if strictly not logged in we redirect.
+        // For robustness, you might want to wait if store is initializing, but this works if layout handles auth init.
+        if (!isLoggedIn || !isAdmin) {
+            router.replace('/');
+        }
+    }, [isLoggedIn, isAdmin, router]);
 
     const [activeTab, setActiveTab] = useState('stats');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -84,7 +87,10 @@ export default function AdminDashboardPage() {
         fetchAdminStats();
     };
 
-    const handleLogout = () => signOut({ redirectUrl: '/' });
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        router.replace('/');
+    };
 
     const openQuizModal = (lessonId) => {
         setQuizLessonId(lessonId);
@@ -118,7 +124,7 @@ export default function AdminDashboardPage() {
     ] : [];
 
     // Avoid flashing admin content before the gate redirect resolves.
-    if (!isLoaded || !isSignedIn || !isAdmin) return null;
+    if (!isLoggedIn || !isAdmin) return null;
 
     return (
         <div className="admin-root flex bg-[#F8FAFC] min-h-screen w-full" dir="rtl">
