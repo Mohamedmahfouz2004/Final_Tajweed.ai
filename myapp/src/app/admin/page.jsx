@@ -13,20 +13,18 @@ export default function AdminDashboardPage() {
     const router = useRouter();
     const {
         lessons, fetchLessons, addLesson, updateLesson, deleteLesson,
-        currentUser, isLoggedIn,
+        currentUser, isLoggedIn, isAdmin,
         adminStats, fetchAdminStats,
         adminUsers, fetchAdminUsers, updateUserRole, deleteUser,
         addQuiz, deleteQuiz
     } = useAppStore();
 
-    // In Supabase, custom metadata is often in user_metadata or app_metadata
-    const isAdmin = currentUser?.user_metadata?.role === 'admin' || currentUser?.role === 'admin';
-
     // Gate: only signed-in admins may view this page.
     useEffect(() => {
-        // Wait a small tick to allow auth to hydrate, though if strictly not logged in we redirect.
-        // For robustness, you might want to wait if store is initializing, but this works if layout handles auth init.
-        if (!isLoggedIn || !isAdmin) {
+        // Wait a small tick to allow auth to hydrate
+        if (isLoggedIn === false) {
+            router.replace('/login');
+        } else if (isLoggedIn === true && isAdmin === false) {
             router.replace('/');
         }
     }, [isLoggedIn, isAdmin, router]);

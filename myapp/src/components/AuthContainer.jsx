@@ -81,12 +81,19 @@ export default function AuthContainer({ initialMode = 'login' }) {
     setError(null);
     setLoading(true);
     if (!supabase) return;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
       setError('البريد الإلكتروني أو كلمة المرور غير صحيحة.');
     } else {
-      router.push('/');
+      const userEmail = data?.user?.email;
+      const ADMIN_EMAILS = ['mhfwz8889@gmail.com', 'tajweed.ai0@gmail.com', 'mmah09378@gmail.com'];
+      
+      if (userEmail && ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
+        router.push('/admin');
+      } else {
+        router.push('/');
+      }
     }
   };
 
@@ -130,7 +137,14 @@ export default function AuthContainer({ initialMode = 'login' }) {
       // or if Email Confirmation is still required.
       setError('هذا البريد الإلكتروني مسجل بالفعل، أو يرجى مراجعة بريدك لتفعيل الحساب.');
     } else {
-      router.push('/'); 
+      const userEmail = data?.user?.email;
+      const ADMIN_EMAILS = ['mhfwz8889@gmail.com', 'tajweed.ai0@gmail.com', 'mmah09378@gmail.com'];
+      
+      if (userEmail && ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
+        router.push('/admin');
+      } else {
+        router.push('/'); 
+      }
     }
   };
 

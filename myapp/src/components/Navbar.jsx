@@ -17,6 +17,7 @@ const Navbar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const isLoggedIn = useAppStore(state => state.isLoggedIn);
+  const isAdmin = useAppStore(state => state.isAdmin);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(false);
@@ -197,6 +198,29 @@ const Navbar = () => {
                       <User size={16} />
                       حسابي
                     </Link>
+                    {isAdmin && (
+                      <Link 
+                        href="/admin"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        style={{
+                          padding: '10px 14px',
+                          color: '#D4AF37',
+                          textDecoration: 'none',
+                          fontSize: '14px',
+                          fontFamily: "'IBM Plex Sans Arabic', sans-serif",
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          transition: 'background 0.2s ease'
+                        }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)' }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent' }}
+                      >
+                        <LayoutDashboard size={16} />
+                        لوحة الإدارة
+                      </Link>
+                    )}
                     <button 
                       onClick={async () => {
                         setIsProfileMenuOpen(false);

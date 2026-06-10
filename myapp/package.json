@@ -10,6 +10,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.108.1",
     "date-fns": "^4.4.0",
+    "dotenv": "^17.4.2",
     "framer-motion": "^12.40.0",
     "howler": "^2.2.4",
     "lottie-react": "^2.4.1",
