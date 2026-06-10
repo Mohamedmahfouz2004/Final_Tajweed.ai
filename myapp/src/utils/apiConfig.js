@@ -11,8 +11,8 @@
  * Each can be overridden via a NEXT_PUBLIC_* env var (set them in .env.local).
  */
 
-let API_BASE     = process.env.NEXT_PUBLIC_API_URL     || 'https://neat-cougars-glow.loca.lt';
-let MUAALEM_BASE = process.env.NEXT_PUBLIC_MUAALEM_URL || 'https://voice-plus-twisty.ngrok-free.dev';
+let API_BASE     = process.env.NEXT_PUBLIC_API_URL || 'https://neat-cougars-glow.loca.lt';
+let MUAALEM_BASE = 'https://voice-plus-twisty.ngrok-free.dev'; // Hardcoded to bypass old Vercel env vars
 
 if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search);
