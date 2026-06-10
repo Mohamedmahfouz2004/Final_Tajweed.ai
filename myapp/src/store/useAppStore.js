@@ -57,6 +57,7 @@ const useAppStore = create((set, get) => ({
 
     // --- Lesson State ---
     lessons: [],
+    isLoadingLessons: true,
     setLessons: (lessons) => set({ lessons }),
     selectedLesson: null,
     setSelectedLesson: (lesson) => set({ selectedLesson: lesson }),
@@ -150,9 +151,19 @@ const useAppStore = create((set, get) => ({
 
     // --- Data Actions ---
     fetchLessons: async () => {
-        const data = await fetchJsonSafe(`${API_BASE}/api/lessons`);
-        if (Array.isArray(data)) {
-            set({ lessons: data });
+        set({ isLoadingLessons: true });
+        try {
+            const data = await fetchJsonSafe(`${API_BASE}/api/lessons`);
+            if (Array.isArray(data)) {
+                set({ lessons: data });
+            } else {
+                set({ lessons: [] });
+            }
+        } catch (error) {
+            console.error("Error fetching lessons:", error);
+            set({ lessons: [] });
+        } finally {
+            set({ isLoadingLessons: false });
         }
     },
 

@@ -16,6 +16,7 @@ const reveal  = {
 export default function LessonsPage() {
     const router = useRouter();
     const lessons = useAppStore(s => s.lessons);
+    const isLoadingLessons = useAppStore(s => s.isLoadingLessons);
     const fetchLessons = useAppStore(s => s.fetchLessons);
     const userProgress = useAppStore(s => s.userProgress);
     const fetchUserProgress = useAppStore(s => s.fetchUserProgress);
@@ -67,11 +68,18 @@ export default function LessonsPage() {
             <div className="ui-divider" aria-hidden />
 
             <motion.div variants={reveal} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {lessons.length > 0 ? (
+                {isLoadingLessons ? (
+                    <div className="col-span-full ui-panel" style={{ textAlign: 'center', padding: '52px 24px' }}>
+                        <BookOpen size={36} style={{ color: 'var(--ink-500)', margin: '0 auto 14px' }} />
+                        <p style={{ color: 'var(--ink-500)', fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.4rem' }}>
+                          جاري تحميل الدروس...
+                        </p>
+                    </div>
+                ) : lessons.length > 0 ? (
                     lessons.map((lesson, idx) => {
-                        const isCompleted = userProgress?.completedLessonsList?.includes(lesson._id.toString());
+                        const isCompleted = userProgress?.completedLessonsList?.includes(lesson._id?.toString() || lesson.id?.toString());
                         return (
-                            <motion.div key={lesson._id} variants={reveal}>
+                            <motion.div key={lesson._id || lesson.id || idx} variants={reveal}>
                                 <LessonCard
                                     lesson={lesson}
                                     index={idx}
@@ -80,7 +88,7 @@ export default function LessonsPage() {
                                         if (!isLoggedIn) {
                                             openAuthModal();
                                         } else {
-                                            router.push(`/lessons/${lesson._id}`);
+                                            router.push(`/lessons/${lesson._id || lesson.id}`);
                                         }
                                     }}
                                 />
@@ -89,9 +97,9 @@ export default function LessonsPage() {
                     })
                 ) : (
                     <div className="col-span-full ui-panel" style={{ textAlign: 'center', padding: '52px 24px' }}>
-                        <BookOpen size={36} style={{ color: 'var(--ink-500)', margin: '0 auto 14px' }} />
-                        <p style={{ color: 'var(--ink-500)', fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.4rem' }}>
-                          جاري تحميل الدروس...
+                        <BookOpen size={36} style={{ color: 'var(--ink-400)', margin: '0 auto 14px', opacity: 0.5 }} />
+                        <p style={{ color: 'var(--ink-500)', fontFamily: 'var(--font-ibm)', fontSize: '1.1rem', fontWeight: 500 }}>
+                          لا توجد دروس متاحة حالياً
                         </p>
                     </div>
                 )}
