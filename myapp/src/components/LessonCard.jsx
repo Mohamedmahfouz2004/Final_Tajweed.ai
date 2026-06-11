@@ -7,7 +7,7 @@ const LessonCard = ({ lesson, onSelect, isCompleted, isVideoWatched, theoretical
     const videoCount = lesson.video_url ? lesson.video_url.split(',').length : 0;
     
     return (
-        <div style={{ position: 'relative', height: '100%' }}>
+        <div className="w-full h-full" style={{ position: 'relative' }}>
             {/* Top Left Floating Bubble */}
             {(isCompleted || hasTheoreticalAttempt) && (
                 <div style={{
@@ -31,8 +31,8 @@ const LessonCard = ({ lesson, onSelect, isCompleted, isVideoWatched, theoretical
 
             <motion.button
                 type="button"
-                className={`ui-tile group ${isCompleted ? 'ui-tile--emerald' : ''}`}
-                style={{ height: '100%', minHeight: '100%', display: 'flex', flexDirection: 'column' }}
+                className={`ui-tile w-full group ${isCompleted ? 'ui-tile--emerald' : ''}`}
+                style={{ width: '100%', height: '100%', minHeight: '100%', display: 'flex', flexDirection: 'column' }}
                 onClick={onSelect}
                 whileHover={{}}
                 whileTap={{ scale: 0.98 }}

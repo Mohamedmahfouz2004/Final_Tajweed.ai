@@ -93,7 +93,7 @@ export default function LessonsPage() {
                         const isTheoreticalInProgress = answeredCount > 0 && answeredCount < totalQuestions;
 
                         return (
-                            <motion.div key={lessonIdStr || idx} variants={reveal} className="h-full">
+                            <motion.div key={lessonIdStr || idx} variants={reveal} className="h-full w-full">
                                 <LessonCard
                                     lesson={lesson}
                                     index={idx}
