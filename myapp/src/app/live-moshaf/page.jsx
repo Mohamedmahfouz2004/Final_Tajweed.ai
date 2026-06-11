@@ -624,11 +624,10 @@ const LiveMoshafView = () => {
 
             {/* Bottom Controls */}
             <div className="bg-[var(--parchment-50)] border-t border-[var(--sand-400)] p-4 shrink-0 shadow-[0_-10px_30px_rgba(44,24,16,0.05)]">
-                <div className="max-w-4xl mx-auto flex items-center justify-between gap-4 relative">
+                <div className="max-w-4xl mx-auto flex items-center justify-center md:justify-between gap-4 relative">
 
-                    {/* Metrics */}
-                    {/* Metrics & Toggles */}
-                    <div className="flex gap-4">
+                    {/* Metrics & dev toggles — desktop only (clutter on mobile) */}
+                    <div className="hidden md:flex gap-4">
                         <div className="flex items-center gap-2 text-[var(--emerald-600)]">
                             <Clock size={16} />
                             <span className="font-bold text-sm" dir="ltr">{metrics.buffer_s} s</span>

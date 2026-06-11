@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import useAppStore from '../store/useAppStore';
 import { getErrorInfo } from '../utils/errorTypeMap';
-import { API_BASE } from '../utils/apiConfig';
 
 /* ─────────────────────────────────────────────
    THE 11 TAJWEED ATTRIBUTES (mirror Muaalem heads)
@@ -71,8 +70,9 @@ function Bar({ value = 0, idle = false }) {
 export default function HomeView() {
   const router = useRouter();
   const isLoggedIn         = useAppStore(s => s.isLoggedIn);
-  const userProgress       = useAppStore(s => s.userProgress);
   const fetchUserProgress  = useAppStore(s => s.fetchUserProgress);
+  const fetchProgressOverview = useAppStore(s => s.fetchProgressOverview);
+  const overview           = useAppStore(s => s.progressOverview);
   const lastSession        = useAppStore(s => s.lastSession);
   const resumeLastSession  = useAppStore(s => s.resumeLastSession);
   const setSelectedSurah   = useAppStore(s => s.setSelectedSurah);
@@ -81,35 +81,22 @@ export default function HomeView() {
   const surahs             = useAppStore(s => s.surahs);
   const requireAuth        = useAppStore(s => s.requireAuth);
 
-  const [detailed, setDetailed] = useState(null);
-
   useEffect(() => {
-    if (isLoggedIn) fetchUserProgress();
+    if (isLoggedIn) {
+      fetchUserProgress();
+      fetchProgressOverview();
+    }
   }, [isLoggedIn]);
 
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    (async () => {
-      const token = await useAppStore.getState().getToken?.();
-      if (!token) return;
-      fetch(`${API_BASE}/api/progress/detailed-summary`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then(r => r.ok ? r.json() : null)
-        .then(d => setDetailed(d))
-        .catch(() => {});
-    })();
-  }, [isLoggedIn]);
-
-  /* Compute mastery per rule: (total - uncorrected) / total × 100 */
+  /* Per-rule mastery sourced from Supabase (progressOverview.mastery, keyed by
+     canonical rule_id). Rules with no recorded mistakes are "untouched". */
   const ruleStats = useMemo(() => {
     const byKey = {};
-    (detailed?.mistakesByCategory || []).forEach(m => {
-      byKey[m.error_type] = {
+    (overview?.mastery || []).forEach(m => {
+      byKey[m.rule_id] = {
         total: m.total ?? 0,
-        corrected: m.corrected ?? 0,
-        uncorrected: m.uncorrected ?? 0,
-        error_pct: m.error_percentage ?? 0,
+        uncorrected: m.outstandingCount ?? 0,
+        percent: m.percent ?? 0,
       };
     });
 
@@ -118,12 +105,9 @@ export default function HomeView() {
       if (!r || r.total === 0) {
         return { ...rule, mastery: 0, total: 0, uncorrected: 0, untouched: true };
       }
-      const mastery = r.total > 0
-        ? Math.round(((r.total - r.uncorrected) / r.total) * 100)
-        : 100;
-      return { ...rule, mastery, total: r.total, uncorrected: r.uncorrected, untouched: false };
+      return { ...rule, mastery: r.percent, total: r.total, uncorrected: r.uncorrected, untouched: false };
     });
-  }, [detailed]);
+  }, [overview]);
 
   const overallMastery = useMemo(() => {
     const touched = ruleStats.filter(r => !r.untouched);

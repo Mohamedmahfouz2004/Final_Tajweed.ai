@@ -258,12 +258,12 @@ function TafseerView() {
                 ) : (
                     <div style={{ textAlign: 'center', lineHeight: 5.4 }}>
                         {selectedSura !== 9 && fromAyah === 1 && (
-                            <p style={{ fontFamily: "var(--font-aref-ruqaa), 'Aref Ruqaa', Amiri, serif", fontSize: '1.7rem', color: 'var(--brass-700)', marginBottom: 18, fontWeight: 700 }}>
+                            <p className="selectable" style={{ fontFamily: "var(--font-aref-ruqaa), 'Aref Ruqaa', Amiri, serif", fontSize: '1.7rem', color: 'var(--brass-700)', marginBottom: 18, fontWeight: 700 }}>
                                 بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
                             </p>
                         )}
 
-                        <div style={{ fontFamily: "var(--font-aref-ruqaa), 'Aref Ruqaa', Amiri, serif", fontSize: 'clamp(1.7rem, 3.4vw, 2.4rem)', color: 'var(--ink-900)' }}>
+                        <div className="selectable" style={{ fontFamily: "var(--font-aref-ruqaa), 'Aref Ruqaa', Amiri, serif", fontSize: 'clamp(1.7rem, 3.4vw, 2.4rem)', color: 'var(--ink-900)' }}>
                             {verses.map((verse) => {
                                 const vKey = verse.verse_key;
                                 const isHovered = hoveredAyah === vKey;
@@ -347,7 +347,7 @@ function TafseerView() {
                                                                 <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: '0.74rem', letterSpacing: '0.18em', color: 'var(--ink-500)' }}>LOADING ...</span>
                                                             </div>
                                                         ) : (
-                                                            <p style={{ fontFamily: "var(--font-aref-ruqaa), 'Aref Ruqaa', Amiri, serif", fontSize: '1.2rem', lineHeight: 2.1, color: 'var(--ink-900)' }}>
+                                                            <p className="selectable" style={{ fontFamily: "var(--font-aref-ruqaa), 'Aref Ruqaa', Amiri, serif", fontSize: '1.2rem', lineHeight: 2.1, color: 'var(--ink-900)' }}>
                                                               {tafsirCache[vKey] || 'لا يوجد تفسير متاح.'}
                                                             </p>
                                                         )}

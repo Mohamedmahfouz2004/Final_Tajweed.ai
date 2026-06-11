@@ -95,14 +95,14 @@ const Navbar = () => {
         {/* Brand */}
         <Link
           href="/"
-          className="topnav-brand flex items-center gap-2 group mr-2"
+          className="topnav-brand flex items-center gap-3 group mr-2"
           style={isMobile ? { flex: 2, justifyContent: 'center', order: 2, textDecoration: 'none' } : { textDecoration: 'none' }}
         >
-          <img src="/logo.svg" alt="تجويد.ai" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+          <img src="/logo.svg" alt="تجويد.ai" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
           <strong className="flex items-baseline" aria-label="تجويد ai" dir="rtl" style={{ gap: '0px', flexDirection: 'row' }}>
-            <span style={{ fontFamily: 'var(--font-reem-kufi), sans-serif', fontWeight: 'bold', fontSize: '20px', color: '#FFFFFF' }}>تجويد</span>
-            <span style={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 'bold', fontSize: '18px', color: '#B8923E', position: 'relative', top: '1px' }}>.</span>
-            <span dir="ltr" style={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 'bold', fontSize: '18px', color: '#B8923E', position: 'relative', top: '1px', marginRight: '2px' }}>ai</span>
+            <span style={{ fontFamily: 'var(--font-reem-kufi), sans-serif', fontWeight: 'bold', fontSize: '24px', color: '#FFFFFF' }}>تجويد</span>
+            <span style={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 'bold', fontSize: '22px', color: '#B8923E', position: 'relative', top: '1px' }}>.</span>
+            <span dir="ltr" style={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 'bold', fontSize: '22px', color: '#B8923E', position: 'relative', top: '1px', marginRight: '2px' }}>ai</span>
           </strong>
         </Link>
 
@@ -374,11 +374,11 @@ const Navbar = () => {
                 borderBottom: '1px solid rgba(255,255,255,0.08)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <img src="/logo.svg" alt="" style={{ height: '26px' }} />
+                  <img src="/logo.svg" alt="" style={{ height: '36px' }} />
                   <strong className="flex items-baseline" aria-label="تجويد ai" dir="rtl" style={{ gap: '0px', flexDirection: 'row' }}>
-                    <span style={{ fontFamily: 'var(--font-reem-kufi), sans-serif', fontWeight: 'bold', fontSize: '20px', color: '#FFFFFF' }}>تجويد</span>
-                    <span style={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 'bold', fontSize: '18px', color: '#B8923E', position: 'relative', top: '1px' }}>.</span>
-                    <span dir="ltr" style={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 'bold', fontSize: '18px', color: '#B8923E', position: 'relative', top: '1px', marginRight: '2px' }}>ai</span>
+                    <span style={{ fontFamily: 'var(--font-reem-kufi), sans-serif', fontWeight: 'bold', fontSize: '24px', color: '#FFFFFF' }}>تجويد</span>
+                    <span style={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 'bold', fontSize: '22px', color: '#B8923E', position: 'relative', top: '1px' }}>.</span>
+                    <span dir="ltr" style={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 'bold', fontSize: '22px', color: '#B8923E', position: 'relative', top: '1px', marginRight: '2px' }}>ai</span>
                   </strong>
                 </div>
                 <button

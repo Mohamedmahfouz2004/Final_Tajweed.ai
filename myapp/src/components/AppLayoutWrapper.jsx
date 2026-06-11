@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { usePathname } from 'next/navigation';
+import { MotionConfig } from 'framer-motion';
 import useAppStore from '../store/useAppStore';
 
 // Components
@@ -9,6 +10,7 @@ import SplashScreen from './SplashScreen';
 import Toast from './Toast';
 import Footer from './Footer';
 import Navbar from './Navbar';
+import BottomNav from './BottomNav';
 import MistakesModal from './MistakesModal';
 import VoiceAssistant from './VoiceAssistant';
 
@@ -23,13 +25,20 @@ export default function AppLayoutWrapper({ children }) {
     const closeMistakesModal = useAppStore(s => s.closeMistakesModal);
     const setSurahs = useAppStore(s => s.setSurahs);
     const initAuth = useAppStore(s => s.initAuth);
+    const fetchSiteSettings = useAppStore(s => s.fetchSiteSettings);
 
     const pathname = usePathname();
     const isAdminPath = pathname?.startsWith('/admin');
+    // The bottom tab bar is for normal browsing — hide it on the admin console and
+    // on the fullscreen recording screen.
+    const hideBottomNav = isAdminPath || pathname?.startsWith('/live-moshaf');
 
     useEffect(() => {
         // Initialize Supabase Auth Listener
         const cleanupAuth = initAuth();
+
+        // Load editable footer/contact settings (admin-managed).
+        fetchSiteSettings();
 
         // Flip the hydration guard after paint rather than synchronously in the effect.
         const raf = requestAnimationFrame(() => setMounted(true));
@@ -55,7 +64,7 @@ export default function AppLayoutWrapper({ children }) {
             clearTimeout(timer); 
             if (cleanupAuth) cleanupAuth();
         };
-    }, [hideSplash, setSurahs, initAuth]);
+    }, [hideSplash, setSurahs, initAuth, fetchSiteSettings]);
 
     // Prevent hydration mismatch
     if (!mounted) {
@@ -67,6 +76,7 @@ export default function AppLayoutWrapper({ children }) {
     }
 
     return (
+        <MotionConfig reducedMotion="user">
         <div className="app-layout">
             <SplashScreen show={showSplash} />
             <Toast message={toast} />
@@ -90,6 +100,8 @@ export default function AppLayoutWrapper({ children }) {
                 </div>
             </main>
             {!isAdminPath && <Footer />}
+            {!hideBottomNav && <BottomNav />}
         </div>
+        </MotionConfig>
     );
 }

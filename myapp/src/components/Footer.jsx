@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Mail } from 'lucide-react';
+import useAppStore from '../store/useAppStore';
 
 const LifeBuoyIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -44,7 +45,20 @@ const WhatsAppIcon = ({ size = 16 }) => (
   </svg>
 );
 
-const Footer = () => (
+const Footer = () => {
+  // Admin-editable contact / legal info (falls back to defaults pre-migration).
+  const s = useAppStore(state => state.siteSettings) || {};
+  const email = s.email || 'tajweed.ai0@gmail.com';
+  const phone = s.phone || '+201055664001';
+  const whatsapp = s.whatsapp || `https://wa.me/${(s.phone || '+201055664001').replace(/[^0-9]/g, '')}`;
+  const description = s.description || 'منصة تعليمية ذكية لتحليل تلاوتك بدقة وتدريبك على إتقان أحكام التجويد خطوة بخطوة باستخدام الذكاء الاصطناعي.';
+  const legal = [
+    { label: 'سياسة الخصوصية', url: s.privacy_url },
+    { label: 'شروط الاستخدام', url: s.terms_url },
+    { label: 'إخلاء المسؤولية', url: s.disclaimer_url },
+  ];
+
+  return (
   <motion.footer
     initial={{ opacity: 0, y: 16 }}
     animate={{ opacity: 1, y: 0 }}
@@ -70,9 +84,7 @@ const Footer = () => (
               <span dir="ltr" style={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 'bold', fontSize: '22px', color: '#B8923E', position: 'relative', top: '1px', marginRight: '2px' }}>ai</span>
             </strong>
           </Link>
-          <p className="ui-footer-desc">
-            منصة تعليمية ذكية لتحليل تلاوتك بدقة وتدريبك على إتقان أحكام التجويد خطوة بخطوة باستخدام الذكاء الاصطناعي.
-          </p>
+          <p className="ui-footer-desc">{description}</p>
         </div>
 
         {/* Navigation Column */}
@@ -91,9 +103,12 @@ const Footer = () => (
         <div className="ui-footer-col">
           <h4 className="ui-footer-head">قانوني</h4>
           <div className="ui-footer-links">
-            <Link href="#" className="ui-footer-link">سياسة الخصوصية</Link>
-            <Link href="#" className="ui-footer-link">شروط الاستخدام</Link>
-            <Link href="#" className="ui-footer-link">إخلاء المسؤولية</Link>
+            {legal.map((item) => (
+              <Link key={item.label} href={item.url || '#'} className="ui-footer-link"
+                {...(item.url ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+                {item.label}
+              </Link>
+            ))}
           </div>
         </div>
 
@@ -101,30 +116,39 @@ const Footer = () => (
         <div className="ui-footer-col">
           <h4 className="ui-footer-head">تواصل معنا</h4>
           <div className="ui-footer-links">
-            <Link href="mailto:tajweed.ai0@gmail.com" className="ui-footer-link" dir="ltr" style={{ justifyContent: 'flex-end' }}>
-              <span style={{ marginRight: '8px' }}>tajweed.ai0@gmail.com</span>
-              <Mail size={16} />
-            </Link>
-            <Link href="https://wa.me/201055664001" className="ui-footer-link" dir="ltr" style={{ justifyContent: 'flex-end' }}>
-              <span style={{ marginRight: '8px' }}>+201055664001</span>
-              <WhatsAppIcon size={16} />
-            </Link>
-            <Link href="#" className="ui-footer-link" style={{ gap: '8px' }}>
-              <FacebookIcon size={16} />
-              <span>فيسبوك</span>
-            </Link>
-            <Link href="#" className="ui-footer-link" style={{ gap: '8px' }}>
-              <InstagramIcon size={16} />
-              <span>إنستاجرام</span>
-            </Link>
-            <Link href="#" className="ui-footer-link" style={{ gap: '8px' }}>
-              <TikTokIcon size={16} />
-              <span>تيك توك</span>
-            </Link>
-            <Link href="#" className="ui-footer-link" style={{ gap: '8px' }}>
-              <LifeBuoyIcon size={16} />
-              <span>الدعم الفني</span>
-            </Link>
+            {email && (
+              <Link href={`mailto:${email}`} className="ui-footer-link" dir="ltr" style={{ justifyContent: 'flex-end' }}>
+                <span style={{ marginRight: '8px' }}>{email}</span>
+                <Mail size={16} />
+              </Link>
+            )}
+            {phone && (
+              <Link href={whatsapp} className="ui-footer-link" dir="ltr" style={{ justifyContent: 'flex-end' }} target="_blank" rel="noopener noreferrer">
+                <span style={{ marginRight: '8px' }}>{phone}</span>
+                <WhatsAppIcon size={16} />
+              </Link>
+            )}
+            {/* Social links appear once an admin sets their URL (no dead links). */}
+            {s.facebook && (
+              <Link href={s.facebook} className="ui-footer-link" style={{ gap: '8px' }} target="_blank" rel="noopener noreferrer">
+                <FacebookIcon size={16} /><span>فيسبوك</span>
+              </Link>
+            )}
+            {s.instagram && (
+              <Link href={s.instagram} className="ui-footer-link" style={{ gap: '8px' }} target="_blank" rel="noopener noreferrer">
+                <InstagramIcon size={16} /><span>إنستاجرام</span>
+              </Link>
+            )}
+            {s.tiktok && (
+              <Link href={s.tiktok} className="ui-footer-link" style={{ gap: '8px' }} target="_blank" rel="noopener noreferrer">
+                <TikTokIcon size={16} /><span>تيك توك</span>
+              </Link>
+            )}
+            {s.support && (
+              <Link href={s.support} className="ui-footer-link" style={{ gap: '8px' }} target="_blank" rel="noopener noreferrer">
+                <LifeBuoyIcon size={16} /><span>الدعم الفني</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -287,6 +311,7 @@ const Footer = () => (
       }
     `}</style>
   </motion.footer>
-);
+  );
+};
 
 export default Footer;

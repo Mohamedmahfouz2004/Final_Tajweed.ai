@@ -114,6 +114,17 @@ export const metadata = {
     description: "ارتقِ بتلاوتك مع مساعد الذكاء الاصطناعي",
     locale: "ar_SA",
   },
+  icons: {
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+    apple: "/logo192.png",
+  },
+  // iOS: allow installing to home screen and launching fullscreen (standalone).
+  appleWebApp: {
+    capable: true,
+    title: "تجويد.ai",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport = {
@@ -131,7 +142,8 @@ export default function RootLayout({ children }) {
       suppressHydrationWarning
     >
       <head>
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/logo192.png" />
       </head>
       <body suppressHydrationWarning>
         <AppLayoutWrapper>{children}</AppLayoutWrapper>

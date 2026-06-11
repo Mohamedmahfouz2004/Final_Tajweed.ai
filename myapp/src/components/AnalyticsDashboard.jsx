@@ -291,7 +291,7 @@ const AnalyticsDashboard = ({ isOpen, onClose, metricsHistory = [] }) => {
                                 </div>
 
                                 {/* ── Charts Grid ────────────────────── */}
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
 
                                     {/* Chart 1: End-to-End Latency Timeline */}
                                     <ChartCard title="End-to-End Latency Timeline" subtitle="Total inference latency per chunk over session duration" span={2}>

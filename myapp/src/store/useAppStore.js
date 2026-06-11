@@ -5,14 +5,31 @@ import audioService from '../utils/audioService';
 import { SURAH_LIST } from '../utils/surahNames';
 import { API_BASE, fetchJsonSafe } from '../utils/apiConfig';
 import { supabase } from '../utils/supabaseClient';
+import { resolveRule } from '../utils/errorTypeMap';
 
 
 const useAppStore = create((set, get) => ({
     // --- Auth State (synced from Supabase) ---
     isLoggedIn: false,
+    authChecked: false,   // true once the initial getSession() has resolved
     currentUser: null,
     userProfile: null,
     setUserProfile: (profile) => set({ userProfile: profile }),
+
+    // Re-fetch the signed-in user's profile (role, settings…) on demand. initAuth
+    // only fetches once at login, so anything that changes the DB row afterwards
+    // (e.g. an admin role granted via SQL) needs this to refresh the in-memory copy.
+    refreshUserProfile: async () => {
+        const userId = get().currentUser?.id;
+        if (!userId || !supabase) return null;
+        const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+        if (error) {
+            console.error('[auth] profile refresh failed:', error.message);
+            return null;
+        }
+        if (data) set({ userProfile: data });
+        return data;
+    },
     
     initAuth: () => {
         if (typeof window === 'undefined') return;
@@ -34,15 +51,16 @@ const useAppStore = create((set, get) => ({
 
         // Initial session check
         supabase.auth.getSession().then(({ data: { session } }) => {
-            set({ isLoggedIn: !!session, currentUser: session?.user || null });
+            set({ isLoggedIn: !!session, currentUser: session?.user || null, authChecked: true });
             if (session?.user) fetchProfileData(session.user);
             // if (session?.user) get().fetchUserProgress();
         });
 
         // Listen for auth changes (login, logout)
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            set({ isLoggedIn: !!session, currentUser: session?.user || null });
+            set({ isLoggedIn: !!session, currentUser: session?.user || null, authChecked: true });
             if (session?.user) fetchProfileData(session.user);
+            else set({ userProfile: null });
             // if (session?.user) get().fetchUserProgress();
         });
         
@@ -181,46 +199,54 @@ const useAppStore = create((set, get) => ({
 
     fetchSessionsList: async (from, to) => {
         const userId = get().currentUser?.id;
-        if (!userId) return;
+        if (!userId || !supabase) return;
         try {
             let query = supabase.from('sessions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-            
             if (from) query = query.gte('created_at', from);
             if (to) query = query.lte('created_at', to);
-            
+
             const { data, error } = await query;
             if (error) throw error;
-            
-            if (data) {
-                // Group by day to format it as the UI expects (Daily Sessions)
-                const grouped = {};
-                data.forEach(row => {
-                    const dateStr = new Date(row.created_at).toISOString().split('T')[0];
-                    if (!grouped[dateStr]) {
-                        grouped[dateStr] = {
-                            _id: dateStr,
-                            date: dateStr,
-                            created_at: dateStr,
-                            total_mistakes: 0,
-                            total_corrections: 0,
-                            activities: []
-                        };
-                    }
-                    grouped[dateStr].activities.push({
-                        type: 'recitation',
-                        surah_number: row.surah_number,
-                        from_ayah: row.from_ayah,
-                        to_ayah: row.to_ayah,
-                        mistakes_count: row.total_mistakes,
-                        duration_seconds: row.duration_seconds
-                    });
-                    grouped[dateStr].total_mistakes += (row.total_mistakes || 0);
+
+            // Corrections per day (by corrected_at) so the history shows real ✅ counts.
+            const { data: corrected } = await supabase
+                .from('mistakes')
+                .select('corrected_at')
+                .eq('user_id', userId)
+                .eq('is_corrected', true)
+                .not('corrected_at', 'is', null);
+            const correctionsByDay = {};
+            (corrected || []).forEach((m) => {
+                const d = new Date(m.corrected_at).toISOString().split('T')[0];
+                correctionsByDay[d] = (correctionsByDay[d] || 0) + 1;
+            });
+
+            const grouped = {};
+            (data || []).forEach((row) => {
+                const dateStr = new Date(row.created_at).toISOString().split('T')[0];
+                if (!grouped[dateStr]) {
+                    grouped[dateStr] = {
+                        _id: dateStr, date: dateStr, created_at: dateStr,
+                        total_mistakes: 0, total_corrections: 0, activities: [],
+                    };
+                }
+                grouped[dateStr].activities.push({
+                    type: 'recitation',
+                    surah_number: row.surah_number,
+                    from_ayah: row.from_ayah,
+                    to_ayah: row.to_ayah,
+                    mistakes_count: row.total_mistakes,
+                    duration_seconds: row.duration_seconds,
                 });
-                
-                const sessions = Object.values(grouped).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                set({ sessionsList: sessions });
-                return { sessions };
-            }
+                grouped[dateStr].total_mistakes += (row.total_mistakes || 0);
+            });
+            Object.keys(grouped).forEach((d) => {
+                grouped[d].total_corrections = correctionsByDay[d] || 0;
+            });
+
+            const sessions = Object.values(grouped).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            set({ sessionsList: sessions });
+            return { sessions };
         } catch (err) {
             console.error('[SESSION] Failed to fetch sessions list from Supabase:', err);
         }
@@ -228,26 +254,102 @@ const useAppStore = create((set, get) => ({
 
     fetchSessionsSummary: async () => {
         const userId = get().currentUser?.id;
-        if (!userId) return;
+        if (!userId || !supabase) return;
         try {
-            const { data, error } = await supabase.from('sessions').select('created_at, duration_seconds, total_mistakes').eq('user_id', userId);
+            const { data, error } = await supabase
+                .from('sessions')
+                .select('created_at, duration_seconds, total_mistakes')
+                .eq('user_id', userId);
             if (error) throw error;
-            
-            if (data) {
-                const uniqueDays = new Set(data.map(row => {
-                    if (!row.created_at) return 'unknown';
-                    return new Date(row.created_at).toISOString().split('T')[0];
-                })).size;
-                const summary = {
-                    total_sessions: uniqueDays, // Total active days
-                    total_recitation_time_seconds: data.reduce((acc, curr) => acc + (curr.duration_seconds || 0), 0),
-                    total_mistakes: data.reduce((acc, curr) => acc + (curr.total_mistakes || 0), 0)
-                };
-                set({ sessionsSummary: summary });
-                return summary;
-            }
+
+            // Corrections = mistakes the user has resolved.
+            const { count: correctedCount } = await supabase
+                .from('mistakes')
+                .select('id', { count: 'exact', head: true })
+                .eq('user_id', userId)
+                .eq('is_corrected', true);
+
+            const rows = data || [];
+            const uniqueDays = new Set(rows.map(row =>
+                row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : 'unknown'
+            )).size;
+
+            const summary = {
+                total_sessions: uniqueDays, // active days
+                // NOTE: field name must match what progress/page.jsx reads.
+                total_recitation_time: rows.reduce((acc, r) => acc + (r.duration_seconds || 0), 0),
+                total_mistakes: rows.reduce((acc, r) => acc + (r.total_mistakes || 0), 0),
+                total_corrections: correctedCount || 0,
+            };
+            set({ sessionsSummary: summary });
+            return summary;
         } catch (err) {
             console.error('[SESSION] Failed to fetch sessions summary from Supabase:', err);
+        }
+    },
+
+    // --- Gamified progress overview (streak, XP, level, per-rule mastery) ---
+    // Single source for the headline progress numbers. Degrades gracefully if the
+    // progress-system migration hasn't been applied yet (missing cols/table → zeros).
+    progressOverview: null,
+
+    fetchProgressOverview: async () => {
+        const userId = get().currentUser?.id;
+        if (!userId || !supabase) return;
+        try {
+            // select('*') so missing gamification columns don't throw pre-migration.
+            const [{ data: profile }, { data: mistakes }] = await Promise.all([
+                supabase.from('profiles').select('*').eq('id', userId).single(),
+                supabase.from('mistakes')
+                    .select('rule_category, rule_name_ar, is_corrected, occurrence_count, created_at, corrected_at')
+                    .eq('user_id', userId),
+            ]);
+
+            // Mastery per rule: recency-weighted ratio of resolved vs outstanding errors.
+            // Newer + repeated uncorrected mistakes drag mastery down; correcting them
+            // (auto-detected on a clean re-recitation) pulls it back up. 21-day half-life.
+            const HALF_LIFE = 21;
+            const now = Date.now();
+            const w = (ts) => {
+                if (!ts) return 1;
+                const ageDays = (now - new Date(ts).getTime()) / 86400000;
+                return Math.pow(0.5, Math.max(0, ageDays) / HALF_LIFE);
+            };
+            const byRule = {};
+            (mistakes || []).forEach((m) => {
+                const id = m.rule_category || 'other';
+                if (!byRule[id]) byRule[id] = { resolved: 0, outstanding: 0, total: 0, outstandingCount: 0, name: m.rule_name_ar };
+                byRule[id].total += 1;
+                const occ = m.occurrence_count || 1;
+                if (m.is_corrected) byRule[id].resolved += w(m.corrected_at || m.created_at);
+                else { byRule[id].outstanding += occ * w(m.created_at); byRule[id].outstandingCount += 1; }
+            });
+            const mastery = Object.keys(byRule).map((id) => {
+                const r = byRule[id];
+                const denom = r.resolved + r.outstanding;
+                const percent = denom > 0 ? Math.round((r.resolved / denom) * 100) : 100;
+                const info = resolveRule(id);
+                return { ...info, rule_id: id, name: r.name || info.name, total: r.total, outstandingCount: r.outstandingCount, percent };
+            }).sort((a, b) => a.percent - b.percent); // weakest first
+
+            const xp = profile?.xp || 0;
+            const overview = {
+                xp,
+                level: profile?.level || (1 + Math.floor(xp / 500)),
+                xpIntoLevel: xp % 500,
+                xpForNextLevel: 500,
+                currentStreak: profile?.current_streak || 0,
+                longestStreak: profile?.longest_streak || 0,
+                lastActiveDate: profile?.last_active_date || null,
+                dailyGoal: profile?.daily_goal || 5,
+                totalRecitationSeconds: profile?.total_recitation_seconds || 0,
+                mastery,
+                migrated: profile?.xp !== undefined,
+            };
+            set({ progressOverview: overview });
+            return overview;
+        } catch (err) {
+            console.warn('[progress] fetchProgressOverview failed:', err?.message);
         }
     },
 
@@ -301,25 +403,38 @@ const useAppStore = create((set, get) => ({
             });
         }
 
-        // Keep the old API call for mistake stats if needed
+        // Mistake stats + accuracy, computed from Supabase (no more Mongo round-trip).
         let totalMistakes = 0;
         let weeklyStats = [];
         let mistakeStats = [];
         let versesPracticed = 0;
         let averageAccuracy = 0;
-        
-        const token = await get().getToken?.();
-        if (token) {
-            const data = await fetchJsonSafe(`${API_BASE}/api/progress/summary`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+
+        const [{ data: activeMistakes }, { data: recentSessions }] = await Promise.all([
+            supabase.from('mistakes').select('rule_category, rule_name_ar, surah_number, ayah_number')
+                .eq('user_id', userId).eq('is_corrected', false),
+            supabase.from('sessions').select('score, surah_number, from_ayah, to_ayah')
+                .eq('user_id', userId).order('created_at', { ascending: false }).limit(50),
+        ]);
+
+        if (activeMistakes) {
+            totalMistakes = activeMistakes.length;
+            const byRule = {};
+            activeMistakes.forEach((m) => {
+                const key = m.rule_category || 'other';
+                if (!byRule[key]) byRule[key] = { name: key, rule_name_ar: m.rule_name_ar, count: 0 };
+                byRule[key].count += 1;
             });
-            if (data) {
-                totalMistakes = data.mistakes?.reduce((acc, curr) => acc + (curr.count || 0), 0) || 0;
-                weeklyStats = data.weekly || [];
-                mistakeStats = data.mistakes || [];
-                versesPracticed = data.versesPracticed || 0;
-                averageAccuracy = data.averageAccuracy || 0;
-            }
+            mistakeStats = Object.values(byRule).sort((a, b) => b.count - a.count);
+        }
+        if (recentSessions && recentSessions.length) {
+            const scores = recentSessions.map((s) => s.score || 0);
+            averageAccuracy = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+            const verseSet = new Set();
+            recentSessions.forEach((s) => {
+                for (let a = s.from_ayah; a <= s.to_ayah; a++) verseSet.add(`${s.surah_number}:${a}`);
+            });
+            versesPracticed = verseSet.size;
         }
 
         set({
@@ -407,23 +522,9 @@ const useAppStore = create((set, get) => ({
         }
     },
 
-    logUserMistake: async (lessonId, errorType, audioUrl, feedback) => {
-        const token = await get().getToken?.();
-        if (!token) return;
-
-        try {
-            await fetch(`${API_BASE}/api/progress/log-mistake`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ lesson_id: lessonId, error_type: errorType, audio_url: audioUrl, feedback })
-            });
-        } catch (err) {
-            console.error('Failed to log mistake:', err);
-        }
-    },
+    // Deprecated: mistakes are persisted to Supabase via processLiveMistakes().
+    // Kept as a no-op so any legacy callers don't break. (Previously hit Mongo.)
+    logUserMistake: async () => {},
 
     updateLiveMistake: async (errorType, context = {}) => {
         // context: { surahNumber, ayahNumber, ayahText, charIndex }
@@ -451,223 +552,297 @@ const useAppStore = create((set, get) => ({
         // We no longer persist to DB here. This is now handled in batch when the session ends.
     },
 
-    saveSessionMistakes: async (mistakesArray) => {
-        const token = await get().getToken?.();
-        if (!token || !mistakesArray || mistakesArray.length === 0) return;
+    // Deprecated: session mistakes are reconciled + persisted to Supabase by
+    // processLiveMistakes() (called from the live-moshaf session-end handler).
+    // Kept as a no-op so the existing call site stays harmless. (Previously hit Mongo.)
+    saveSessionMistakes: async () => {},
 
+    // --- Site settings (editable footer / contact / legal links) ---
+    siteSettings: null,
+
+    fetchSiteSettings: async () => {
+        if (!supabase) return;
         try {
-            console.log(`[STORE] Saving batch of ${mistakesArray.length} mistakes at session end.`);
-            // Using Promise.all to log all mistakes concurrently
-            await Promise.all(mistakesArray.map(m => 
-                fetchJsonSafe(`${API_BASE}/api/progress/log-mistake`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ 
-                        error_type: m.name,
-                        surah_number: m.surahNumber || null,
-                        ayah_number: m.ayahNumber || null,
-                        ayah_text: m.ayahText || '',
-                        char_index: m.charIndex || null,
-                    })
-                })
-            ));
-            
-            // Refresh stats after batch save
-            get().fetchUserProgress();
+            const { data } = await supabase.from('site_settings').select('value').eq('key', 'footer').single();
+            if (data?.value) set({ siteSettings: data.value });
         } catch (err) {
-            console.warn('Failed to batch save session mistakes:', err);
+            // Table may not exist before the migration is applied — Footer falls back to defaults.
+            console.warn('[settings] fetch skipped:', err?.message);
         }
     },
 
-    // --- Admin Actions ---
-    addLesson: async (lessonData) => {
-        const token = await get().getToken?.();
-        try {
-            const res = await fetch(`${API_BASE}/api/admin/lessons`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(lessonData)
-            });
-            if (res.ok) {
-                const newLesson = await res.json();
-                set({ lessons: [...get().lessons, newLesson].sort((a, b) => a.sequence_order - b.sequence_order) });
-                get().showToast('✅ تم إضافة الدرس بنجاح');
-                return true;
-            } else {
-                get().showToast('❌ فشل إضافة الدرس');
-            }
-        } catch (err) {
-            console.error('Add lesson failed:', err);
+    updateSiteSettings: async (patch) => {
+        if (!supabase) return false;
+        const value = { ...(get().siteSettings || {}), ...patch };
+        const { error } = await supabase.from('site_settings')
+            .upsert({ key: 'footer', value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        if (error) {
+            console.error('Update site settings failed:', error.message);
+            const missingTable = error.code === '42P01' || /site_settings.*does not exist|relation .*does not exist/i.test(error.message || '');
+            get().showToast(missingTable ? '⚠️ شغّل migration الإعدادات في Supabase أولاً' : '❌ فشل حفظ الإعدادات');
+            return false;
         }
-        return false;
+        set({ siteSettings: value });
+        get().showToast('✅ تم حفظ الإعدادات');
+        return true;
+    },
+
+    // --- Admin Actions (Supabase; gated by is_admin() RLS) ---
+    // Reusable select so admin reads come back with nested quizzes + practical tests.
+    _lessonSelect: '*, quizzes(*), practical_tests(*)',
+
+    addLesson: async (lessonData) => {
+        if (!supabase) return false;
+        const { data, error } = await supabase.from('lessons').insert({
+            title: lessonData.title,
+            description: lessonData.description || '',
+            video_url: lessonData.video_url || '',
+            content_type: 'video',
+            sequence_order: lessonData.sequence_order || (get().lessons.length + 1),
+        }).select(get()._lessonSelect).single();
+        if (error) {
+            console.error('Add lesson failed:', error.message);
+            get().showToast('❌ فشل إضافة الدرس');
+            return false;
+        }
+        set({ lessons: [...get().lessons, data].sort((a, b) => a.sequence_order - b.sequence_order) });
+        get().showToast('✅ تم إضافة الدرس بنجاح');
+        return true;
     },
 
     updateLesson: async (id, lessonData) => {
-        const token = await get().getToken?.();
-        try {
-            const res = await fetch(`${API_BASE}/api/admin/lessons/${id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(lessonData)
-            });
-            if (res.ok) {
-                const updated = await res.json();
-                set({
-                    lessons: get().lessons.map(l => (l._id || l.id) === id ? updated : l).sort((a, b) => a.sequence_order - b.sequence_order)
-                });
-                get().showToast('✅ تم تحديث الدرس بنجاح');
-                return true;
-            } else {
-                get().showToast('❌ فشل تحديث الدرس');
-            }
-        } catch (err) {
-            console.error('Update lesson failed:', err);
+        if (!supabase) return false;
+        const { data, error } = await supabase.from('lessons').update({
+            title: lessonData.title,
+            description: lessonData.description,
+            video_url: lessonData.video_url,
+            sequence_order: lessonData.sequence_order,
+        }).eq('id', id).select(get()._lessonSelect).single();
+        if (error) {
+            console.error('Update lesson failed:', error.message);
+            get().showToast('❌ فشل تحديث الدرس');
+            return false;
         }
-        return false;
+        set({ lessons: get().lessons.map(l => l.id === id ? data : l).sort((a, b) => a.sequence_order - b.sequence_order) });
+        get().showToast('✅ تم تحديث الدرس بنجاح');
+        return true;
     },
 
     deleteLesson: async (id) => {
-        const token = await get().getToken?.();
+        if (!supabase) return false;
         try {
-            const res = await fetch(`${API_BASE}/api/admin/lessons/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                set({ lessons: get().lessons.filter(l => (l._id || l.id) !== id) });
-                get().showToast('🗑️ تم حذف الدرس بنجاح');
-                return true;
-            } else {
-                get().showToast('❌ فشل حذف الدرس');
-            }
+            // Remove children first (no guaranteed FK cascade on these tables).
+            await Promise.all([
+                supabase.from('quizzes').delete().eq('lesson_id', id),
+                supabase.from('practical_tests').delete().eq('lesson_id', id),
+            ]);
+            const { error } = await supabase.from('lessons').delete().eq('id', id);
+            if (error) throw error;
+            set({ lessons: get().lessons.filter(l => l.id !== id) });
+            get().showToast('🗑️ تم حذف الدرس بنجاح');
+            return true;
         } catch (err) {
-            console.error('Delete lesson failed:', err);
+            console.error('Delete lesson failed:', err?.message);
+            get().showToast('❌ فشل حذف الدرس');
+            return false;
         }
-        return false;
     },
 
-    // --- Quiz Management ---
-    addQuiz: async (lessonId, quizData) => {
-        const token = await get().getToken?.();
+    uploadLessonVideo: async (file) => {
+        if (!supabase || !file) return null;
         try {
-            const res = await fetch(`${API_BASE}/api/admin/quizzes`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ lesson_id: lessonId, ...quizData })
-            });
-            if (res.ok) {
-                get().fetchLessons();
-                get().showToast('✅ تم إضافة السؤال بنجاح');
-                return true;
-            } else {
-                get().showToast('❌ فشل إضافة السؤال');
-            }
-        } catch (err) { console.error('Add quiz failed:', err); }
-        return false;
+            const ext = (file.name?.split('.').pop() || 'mp4').toLowerCase();
+            const path = `lessons/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+            const { error } = await supabase.storage.from('lesson-videos')
+                .upload(path, file, { cacheControl: '3600', upsert: false });
+            if (error) throw error;
+            const { data } = supabase.storage.from('lesson-videos').getPublicUrl(path);
+            return data.publicUrl;
+        } catch (err) {
+            console.error('Video upload failed:', err?.message);
+            get().showToast('❌ فشل رفع الفيديو');
+            return null;
+        }
+    },
+
+    // --- Quiz Management (Supabase quizzes table) ---
+    addQuiz: async (lessonId, quizData) => {
+        if (!supabase) return false;
+        const { error } = await supabase.from('quizzes').insert({
+            lesson_id: lessonId,
+            question: quizData.question,
+            options: quizData.options,
+            correct_answer: quizData.correct_answer,
+            points: quizData.points || 10,
+        });
+        if (error) {
+            console.error('Add quiz failed:', error.message);
+            get().showToast('❌ فشل إضافة السؤال');
+            return false;
+        }
+        await get().fetchLessons();
+        get().showToast('✅ تم إضافة السؤال بنجاح');
+        return true;
+    },
+
+    updateQuiz: async (quizId, quizData) => {
+        if (!supabase) return false;
+        const { error } = await supabase.from('quizzes').update({
+            question: quizData.question,
+            options: quizData.options,
+            correct_answer: quizData.correct_answer,
+            points: quizData.points,
+        }).eq('id', quizId);
+        if (error) {
+            console.error('Update quiz failed:', error.message);
+            get().showToast('❌ فشل تحديث السؤال');
+            return false;
+        }
+        await get().fetchLessons();
+        get().showToast('✅ تم تحديث السؤال');
+        return true;
     },
 
     deleteQuiz: async (quizId) => {
-        const token = await get().getToken?.();
-        try {
-            const res = await fetch(`${API_BASE}/api/admin/quizzes/${quizId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                get().fetchLessons();
-                get().showToast('🗑️ تم حذف السؤال');
-                return true;
-            } else {
-                get().showToast('❌ فشل حذف السؤال');
-            }
-        } catch (err) { console.error('Delete quiz failed:', err); }
-        return false;
+        if (!supabase) return false;
+        const { error } = await supabase.from('quizzes').delete().eq('id', quizId);
+        if (error) {
+            console.error('Delete quiz failed:', error.message);
+            get().showToast('❌ فشل حذف السؤال');
+            return false;
+        }
+        await get().fetchLessons();
+        get().showToast('🗑️ تم حذف السؤال');
+        return true;
     },
 
-    // --- Admin Stats & User Management ---
+    // --- Practical Test Management (Supabase practical_tests table) ---
+    addPracticalTest: async (lessonId, t) => {
+        if (!supabase) return false;
+        const { error } = await supabase.from('practical_tests').insert({
+            lesson_id: lessonId,
+            surah_id: t.surah_id,
+            verse_number: t.verse_number,
+            target_word: t.target_word,
+            target_rule: t.target_rule,
+            instruction: t.instruction || '',
+            occurrence_index: t.occurrence_index ?? 0,
+        });
+        if (error) {
+            console.error('Add practical test failed:', error.message);
+            get().showToast('❌ فشل إضافة الاختبار العملي');
+            return false;
+        }
+        await get().fetchLessons();
+        get().showToast('✅ تم إضافة الاختبار العملي');
+        return true;
+    },
+
+    deletePracticalTest: async (id) => {
+        if (!supabase) return false;
+        const { error } = await supabase.from('practical_tests').delete().eq('id', id);
+        if (error) {
+            get().showToast('❌ فشل حذف الاختبار');
+            return false;
+        }
+        await get().fetchLessons();
+        get().showToast('🗑️ تم حذف الاختبار العملي');
+        return true;
+    },
+
+    // --- Admin Stats & User Management (Supabase profiles) ---
     adminStats: null,
     adminUsers: [],
 
     fetchAdminStats: async () => {
-        const token = await get().getToken?.();
+        if (!supabase) return;
         try {
-            const res = await fetch(`${API_BASE}/api/admin/stats`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                set({ adminStats: data });
-            }
+            const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+            const head = { count: 'exact', head: true };
+            const [users, admins, lessons, newUsers, progress, completed, sessions] = await Promise.all([
+                supabase.from('profiles').select('id', head),
+                supabase.from('profiles').select('id', head).eq('role', 'admin'),
+                supabase.from('lessons').select('id', head),
+                supabase.from('profiles').select('id', head).gte('created_at', weekAgo),
+                supabase.from('progress').select('id', head),
+                supabase.from('progress').select('id', head).eq('status', 'completed'),
+                supabase.from('sessions').select('id', head),
+            ]);
+            const totalProgress = progress.count || 0;
+            const completedProgress = completed.count || 0;
+            set({ adminStats: {
+                totalUsers: users.count || 0,
+                totalAdmins: admins.count || 0,
+                totalLessons: lessons.count || 0,
+                newUsersThisWeek: newUsers.count || 0,
+                totalProgress,
+                completedProgress,
+                totalSessions: sessions.count || 0,
+                completionRate: totalProgress > 0 ? Math.round((completedProgress / totalProgress) * 100) : 0,
+            }});
         } catch (err) {
-            console.error('Fetch stats failed:', err);
+            console.error('Fetch stats failed:', err?.message);
         }
     },
 
     fetchAdminUsers: async () => {
-        const token = await get().getToken?.();
+        if (!supabase) return;
         try {
-            const res = await fetch(`${API_BASE}/api/admin/users`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                set({ adminUsers: data });
-            }
+            const { data, error } = await supabase.from('profiles')
+                .select('id, name, email, role, created_at, avatar_url')
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            set({ adminUsers: (data || []).map(u => ({
+                id: u.id, _id: u.id,
+                name: u.name || u.email || 'مستخدم',
+                email: u.email || '',
+                role: u.role || 'user',
+                avatar_url: u.avatar_url,
+                createdAt: u.created_at,
+            })) });
         } catch (err) {
-            console.error('Fetch users failed:', err);
+            console.error('Fetch users failed:', err?.message);
         }
     },
 
     updateUserRole: async (userId, role) => {
-        const token = await get().getToken?.();
-        try {
-            const res = await fetch(`${API_BASE}/api/admin/users/${userId}/role`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ role })
-            });
-            if (res.ok) {
-                const updated = await res.json();
-                set({ adminUsers: get().adminUsers.map(u => u._id === userId ? updated : u) });
-                get().showToast('✅ تم تغيير صلاحية المستخدم');
-                return true;
-            } else {
-                get().showToast('❌ فشل تغيير الصلاحية');
-            }
-        } catch (err) {
-            console.error('Update role failed:', err);
+        if (!supabase) return false;
+        const { error } = await supabase.from('profiles').update({ role }).eq('id', userId);
+        if (error) {
+            console.error('Update role failed:', error.message);
+            get().showToast('❌ فشل تغيير الصلاحية');
+            return false;
         }
-        return false;
+        set({ adminUsers: get().adminUsers.map(u => u.id === userId ? { ...u, role } : u) });
+        get().showToast('✅ تم تغيير صلاحية المستخدم');
+        return true;
     },
 
+    // Removes the user's profile + all their data. NOTE: the underlying Supabase
+    // Auth login (auth.users) can only be hard-deleted with the service_role key
+    // (a future Edge Function); from the browser we soft-delete the profile + data.
     deleteUser: async (userId) => {
-        const token = await get().getToken?.();
-        try {
-            const res = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                set({ adminUsers: get().adminUsers.filter(u => u._id !== userId) });
-                get().showToast('🗑️ تم حذف المستخدم');
-                return true;
-            } else {
-                const data = await res.json();
-                get().showToast(data.msg || '❌ فشل حذف المستخدم');
-            }
-        } catch (err) {
-            console.error('Delete user failed:', err);
+        if (!supabase) return false;
+        if (userId === get().currentUser?.id) {
+            get().showToast('❌ لا يمكنك حذف حسابك');
+            return false;
         }
-        return false;
+        try {
+            await Promise.all([
+                supabase.from('mistakes').delete().eq('user_id', userId),
+                supabase.from('sessions').delete().eq('user_id', userId),
+                supabase.from('progress').delete().eq('user_id', userId),
+            ]);
+            const { error } = await supabase.from('profiles').delete().eq('id', userId);
+            if (error) throw error;
+            set({ adminUsers: get().adminUsers.filter(u => u.id !== userId) });
+            get().showToast('🗑️ تم حذف بيانات المستخدم');
+            return true;
+        } catch (err) {
+            console.error('Delete user failed:', err?.message);
+            get().showToast('❌ فشل حذف المستخدم');
+            return false;
+        }
     },
 
     // --- Practice State ---
@@ -944,7 +1119,11 @@ const useAppStore = create((set, get) => ({
 
     saveRecitationSession: async (sessionData) => {
         const userId = get().currentUser?.id;
-        if (!userId) return null;
+        if (!userId || !supabase) return null;
+
+        const duration = sessionData.duration_seconds || 0;
+        const score = sessionData.score || 0;
+        const verses = Math.max(1, (sessionData.to_ayah || 0) - (sessionData.from_ayah || 0) + 1);
 
         try {
             const { data, error } = await supabase
@@ -954,24 +1133,42 @@ const useAppStore = create((set, get) => ({
                     surah_number: sessionData.surah_number,
                     from_ayah: sessionData.from_ayah,
                     to_ayah: sessionData.to_ayah,
-                    duration_seconds: sessionData.duration_seconds || 0,
+                    duration_seconds: duration,
                     total_mistakes: sessionData.total_mistakes || 0,
-                    score: sessionData.score || 0
+                    score: score
                 }])
                 .select('id')
                 .single();
 
             if (error) throw error;
+
+            // Atomic streak + XP + level bump in the DB. XP rewards both effort
+            // (verses recited) and accuracy (score). Degrades silently pre-migration.
+            const xpGain = Math.max(10, Math.round(score / 2) + verses * 5);
+            supabase.rpc('apply_session_result', {
+                p_score: score,
+                p_duration: duration,
+                p_xp_gain: xpGain,
+            }).then(({ error: rpcErr }) => {
+                if (rpcErr) console.warn('[progress] streak/XP update skipped:', rpcErr.message);
+                else get().fetchProgressOverview();
+            });
+
             return data.id;
         } catch (error) {
-            console.error("Failed to save session to Supabase:", error);
+            console.error('Failed to save session to Supabase:', error);
             return null;
         }
     },
 
+    // Reconcile a finished recitation against the user's stored mistakes.
+    //   • New error spots  → insert a canonical mistake row (full ayah text).
+    //   • Recurring spots  → bump occurrence_count + updated_at (don't duplicate).
+    //   • Cleaned-up spots → mark is_corrected.
+    // Also tallies per-rule attempts/errors and feeds the rolling mastery model.
     processLiveMistakes: async (sessionId, currentErrors, getAyahNumberFn, surahNumber, startAyah, endAyah) => {
         const userId = get().currentUser?.id;
-        if (!userId) return;
+        if (!userId || !supabase) return;
 
         const { data: existingMistakes, error: fetchErr } = await supabase
             .from('mistakes')
@@ -980,68 +1177,85 @@ const useAppStore = create((set, get) => ({
             .eq('is_corrected', false);
 
         if (fetchErr) {
-            console.error("Failed to fetch existing mistakes:", fetchErr);
+            console.error('Failed to fetch existing mistakes:', fetchErr);
             return;
         }
 
-        const errorChars = currentErrors.filter(ch => ch.error);
-        const newMistakesToInsert = [];
-        const mistakesToCorrect = [];
-
-        errorChars.forEach(ch => {
+        // Reconstruct full ayah text from the recited chars (chars sharing an ayah).
+        // NOTE: the model only tags error_type on ERROR chars (correct chars are
+        // ErrorType.NONE), so there is no per-rule "attempt" count to compute a true
+        // accuracy ratio. Mastery is therefore derived from the mistakes table itself
+        // (recency-weighted corrected-vs-uncorrected) in fetchProgressOverview().
+        const ayahTextByNum = {};
+        currentErrors.forEach((ch) => {
             const ayahNum = getAyahNumberFn(ch.index);
-            const exists = existingMistakes.find(m => 
-                m.rule_category === ch.error_type && 
-                m.ayah_number === ayahNum && 
+            if (ch.char) ayahTextByNum[ayahNum] = (ayahTextByNum[ayahNum] || '') + ch.char;
+        });
+
+        const errorChars = currentErrors.filter((ch) => ch.error);
+        const newMistakesToInsert = [];
+        const occurrenceBumps = [];   // ids of existing mistakes that recurred this session
+
+        errorChars.forEach((ch) => {
+            const ayahNum = getAyahNumberFn(ch.index);
+            const rule = resolveRule(ch.error_type);
+            const existing = existingMistakes.find((m) =>
+                m.rule_category === rule.rule_id &&
+                m.ayah_number === ayahNum &&
                 m.char_index === ch.index
             );
 
-            if (!exists) {
+            if (existing) {
+                occurrenceBumps.push(existing);
+            } else {
                 newMistakesToInsert.push({
                     user_id: userId,
                     lesson_id: null,
-                    error_type: ch.error_type || 'tajweed',
-                    rule_category: ch.error_type,
-                    rule_name_ar: ch.tooltip || ch.error_type,
+                    error_type: rule.rule_id,
+                    rule_category: rule.rule_id,        // canonical id (was raw/inconsistent)
+                    rule_name_ar: ch.tooltip || rule.name,
                     surah_number: surahNumber,
                     ayah_number: ayahNum,
-                    ayah_text: ch.char,
+                    ayah_text: ayahTextByNum[ayahNum] || ch.char || '',
                     char_index: ch.index,
                     is_corrected: false,
-                    occurrence_count: 1
+                    occurrence_count: 1,
                 });
             }
         });
 
-        const mistakesInScope = existingMistakes.filter(m => 
-            m.surah_number === surahNumber && 
-            m.ayah_number >= startAyah && 
+        // A previously-logged mistake inside the recited range that no longer errors → corrected.
+        const mistakesInScope = existingMistakes.filter((m) =>
+            m.surah_number === surahNumber &&
+            m.ayah_number >= startAyah &&
             m.ayah_number <= endAyah
         );
-
-        mistakesInScope.forEach(m => {
-            const stillExists = errorChars.find(ch => 
-                ch.error_type === m.rule_category && 
+        const mistakesToCorrect = mistakesInScope
+            .filter((m) => !errorChars.find((ch) =>
+                resolveRule(ch.error_type).rule_id === m.rule_category &&
                 getAyahNumberFn(ch.index) === m.ayah_number &&
                 ch.index === m.char_index
-            );
+            ))
+            .map((m) => m.id);
 
-            if (!stillExists) {
-                mistakesToCorrect.push(m.id);
-            }
-        });
-
+        const ops = [];
         if (newMistakesToInsert.length > 0) {
-            await supabase.from('mistakes').insert(newMistakesToInsert);
+            ops.push(supabase.from('mistakes').insert(newMistakesToInsert));
         }
-
+        occurrenceBumps.forEach((m) => {
+            ops.push(supabase.from('mistakes')
+                .update({ occurrence_count: (m.occurrence_count || 1) + 1, updated_at: new Date().toISOString() })
+                .eq('id', m.id));
+        });
         if (mistakesToCorrect.length > 0) {
-            await supabase.from('mistakes')
+            ops.push(supabase.from('mistakes')
                 .update({ is_corrected: true, corrected_at: new Date().toISOString() })
-                .in('id', mistakesToCorrect);
+                .in('id', mistakesToCorrect));
         }
+        await Promise.all(ops);
 
         get().fetchUserMistakes();
+        get().fetchProgressOverview();
     },
 
     fetchSessionAnalytics: async (sessionId) => {

@@ -2,561 +2,581 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit2, Trash2, Video, BookOpen, AlertCircle, Save, X, LogOut, ShieldCheck, Users, BarChart3, UserCog, Crown, HelpCircle, ChevronDown } from 'lucide-react';
+import {
+    Plus, Edit2, Trash2, Video, BookOpen, Save, X, LogOut, ShieldCheck, Users,
+    BarChart3, UserCog, Crown, HelpCircle, ChevronDown, Loader2, Target,
+    Activity, CheckCircle2, Upload, Settings, Mail, Phone, Link2,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import useAppStore from '../../store/useAppStore';
-import { fadeInUp } from '../../utils/animations';
-import { API_BASE } from '../../utils/apiConfig';
 import { supabase } from '../../utils/supabaseClient';
+import { useIsMobile } from '../../hooks/useIsMobile';
+
+const IBM = 'var(--font-ibm), "IBM Plex Sans Arabic", sans-serif';
+const RAKKAS = 'var(--font-rakkas), Rakkas';
+
+const CARD = {
+    background: '#FFFDF8', border: '1px solid #DDCDA6', borderRadius: '18px',
+    boxShadow: '0 1px 2px rgba(15,26,13,0.05), 0 18px 40px -22px rgba(15,26,13,0.15)',
+};
+const iconBtn = (color, danger) => ({
+    width: 38, height: 38, borderRadius: 10, display: 'inline-flex', alignItems: 'center',
+    justifyContent: 'center', border: `1px solid ${danger ? 'rgba(139,58,42,0.3)' : '#DDCDA6'}`,
+    background: danger ? 'rgba(139,58,42,0.06)' : '#FFFDF8', color, cursor: 'pointer', transition: 'all .15s ease',
+});
+
+const EMPTY_QUIZ = { question: '', options: ['', '', '', ''], correct_answer: '', points: 10 };
+const EMPTY_TEST = { surah_id: '', verse_number: '', target_word: '', target_rule: '', instruction: '', occurrence_index: 0 };
+const DEFAULT_FOOTER = {
+    description: 'منصة تعليمية ذكية لتحليل تلاوتك بدقة وتدريبك على إتقان أحكام التجويد خطوة بخطوة باستخدام الذكاء الاصطناعي.',
+    email: 'tajweed.ai0@gmail.com', phone: '+201055664001', whatsapp: 'https://wa.me/201055664001',
+    facebook: '', instagram: '', tiktok: '', support: '',
+    privacy_url: '', terms_url: '', disclaimer_url: '',
+};
 
 export default function AdminDashboardPage() {
     const router = useRouter();
     const {
-        lessons, fetchLessons, addLesson, updateLesson, deleteLesson,
-        currentUser, isLoggedIn,
+        lessons, fetchLessons, addLesson, updateLesson, deleteLesson, uploadLessonVideo,
+        currentUser, userProfile, isLoggedIn, authChecked,
         adminStats, fetchAdminStats,
         adminUsers, fetchAdminUsers, updateUserRole, deleteUser,
-        addQuiz, deleteQuiz
+        addQuiz, updateQuiz, deleteQuiz, addPracticalTest, deletePracticalTest,
+        refreshUserProfile,
+        siteSettings, fetchSiteSettings, updateSiteSettings,
     } = useAppStore();
 
-    // In Supabase, custom metadata is often in user_metadata or app_metadata
-    const isAdmin = currentUser?.user_metadata?.role === 'admin' || currentUser?.role === 'admin';
+    const isAdmin = userProfile?.role === 'admin';
+    const isMobile = useIsMobile();
+    const [profileTried, setProfileTried] = useState(false);
 
-    // Gate: only signed-in admins may view this page.
     useEffect(() => {
-        // Wait a small tick to allow auth to hydrate, though if strictly not logged in we redirect.
-        // For robustness, you might want to wait if store is initializing, but this works if layout handles auth init.
-        if (!isLoggedIn || !isAdmin) {
-            router.replace('/');
-        }
-    }, [isLoggedIn, isAdmin, router]);
+        if (!authChecked) return;
+        if (!isLoggedIn) { router.replace('/login'); return; }
+        if (currentUser?.id) refreshUserProfile().finally(() => setProfileTried(true));
+    }, [authChecked, isLoggedIn, currentUser?.id, refreshUserProfile, router]);
 
     const [activeTab, setActiveTab] = useState('stats');
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingLesson, setEditingLesson] = useState(null);
     const [uploading, setUploading] = useState(false);
-    const [formData, setFormData] = useState({ title: '', description: '', video_url: '', sequence_order: 1 });
+
+    const [lessonModalOpen, setLessonModalOpen] = useState(false);
+    const [editingLesson, setEditingLesson] = useState(null);
+    const [lessonForm, setLessonForm] = useState({ title: '', description: '', video_url: '', sequence_order: 1 });
     const [expandedLesson, setExpandedLesson] = useState(null);
+
     const [quizModalOpen, setQuizModalOpen] = useState(false);
     const [quizLessonId, setQuizLessonId] = useState(null);
-    const [quizForm, setQuizForm] = useState({ question: '', options: ['', '', '', ''], correct_answer: '', points: 10 });
+    const [editingQuizId, setEditingQuizId] = useState(null);
+    const [quizForm, setQuizForm] = useState(EMPTY_QUIZ);
+
+    const [testModalOpen, setTestModalOpen] = useState(false);
+    const [testLessonId, setTestLessonId] = useState(null);
+    const [testForm, setTestForm] = useState(EMPTY_TEST);
+
+    // Footer/contact/legal settings form
+    const [settingsForm, setSettingsForm] = useState(null);
+    const [savingSettings, setSavingSettings] = useState(false);
 
     useEffect(() => {
+        if (!isAdmin) return;
         fetchLessons();
         fetchAdminStats();
         fetchAdminUsers();
-    }, [fetchLessons, fetchAdminStats, fetchAdminUsers]);
+        fetchSiteSettings();
+        document.title = 'لوحة الإدارة | Tajweed.ai';
+    }, [isAdmin, fetchLessons, fetchAdminStats, fetchAdminUsers, fetchSiteSettings]);
 
-    const handleOpenModal = (lesson = null) => {
+    // ── handlers ──
+    const openLessonModal = (lesson = null) => {
         if (lesson) {
             setEditingLesson(lesson);
-            setFormData({ title: lesson.title, description: lesson.description, video_url: lesson.video_url || '', sequence_order: lesson.sequence_order });
+            setLessonForm({ title: lesson.title, description: lesson.description || '', video_url: lesson.video_url || '', sequence_order: lesson.sequence_order });
         } else {
             setEditingLesson(null);
-            setFormData({ title: '', description: '', video_url: '', sequence_order: lessons.length + 1 });
+            setLessonForm({ title: '', description: '', video_url: '', sequence_order: lessons.length + 1 });
         }
-        setIsModalOpen(true);
+        setLessonModalOpen(true);
     };
-
-    const handleSubmit = async (e) => {
+    const submitLesson = async (e) => {
         e.preventDefault();
-        let success = false;
-        if (editingLesson) {
-            success = await updateLesson(editingLesson._id || editingLesson.id, formData);
-        } else {
-            success = await addLesson(formData);
-        }
-        if (success) setIsModalOpen(false);
+        const ok = editingLesson ? await updateLesson(editingLesson.id, lessonForm) : await addLesson(lessonForm);
+        if (ok) { setLessonModalOpen(false); fetchAdminStats(); }
+    };
+    const onVideoFile = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        const url = await uploadLessonVideo(file);
+        if (url) setLessonForm((prev) => ({ ...prev, video_url: url }));
+        setUploading(false);
+        e.target.value = '';
     };
 
-    const handleDelete = async (id) => {
-        if (window.confirm('هل أنت متأكد من حذف هذا الدرس؟')) {
-            await deleteLesson(id);
-        }
-    };
-
-    const handleDeleteUser = async (id) => {
-        if (window.confirm('هل أنت متأكد من حذف هذا المستخدم وجميع بياناته؟')) {
-            await deleteUser(id);
-            fetchAdminStats();
-        }
-    };
-
-    const handleRoleChange = async (userId, newRole) => {
-        await updateUserRole(userId, newRole);
-        fetchAdminStats();
-    };
-
-    const handleLogout = async () => {
-        if (supabase) await supabase.auth.signOut();
-        router.replace('/');
-    };
-
-    const openQuizModal = (lessonId) => {
+    const openQuizModal = (lessonId, quiz = null) => {
         setQuizLessonId(lessonId);
-        setQuizForm({ question: '', options: ['', '', '', ''], correct_answer: '', points: 10 });
+        if (quiz) {
+            setEditingQuizId(quiz.id);
+            const opts = Array.isArray(quiz.options) ? [...quiz.options] : ['', '', '', ''];
+            while (opts.length < 4) opts.push('');
+            setQuizForm({ question: quiz.question, options: opts, correct_answer: quiz.correct_answer, points: quiz.points || 10 });
+        } else {
+            setEditingQuizId(null);
+            setQuizForm(EMPTY_QUIZ);
+        }
         setQuizModalOpen(true);
     };
-
-    const handleQuizSubmit = async (e) => {
+    const submitQuiz = async (e) => {
         e.preventDefault();
-        const success = await addQuiz(quizLessonId, quizForm);
-        if (success) setQuizModalOpen(false);
+        const payload = { ...quizForm, options: quizForm.options.filter((o) => o.trim()) };
+        const ok = editingQuizId ? await updateQuiz(editingQuizId, payload) : await addQuiz(quizLessonId, payload);
+        if (ok) setQuizModalOpen(false);
     };
 
-    const handleDeleteQuiz = async (quizId) => {
-        if (window.confirm('هل أنت متأكد من حذف هذا السؤال؟')) {
-            await deleteQuiz(quizId);
-        }
+    const openTestModal = (lessonId) => { setTestLessonId(lessonId); setTestForm(EMPTY_TEST); setTestModalOpen(true); };
+    const submitTest = async (e) => {
+        e.preventDefault();
+        const ok = await addPracticalTest(testLessonId, {
+            ...testForm,
+            surah_id: parseInt(testForm.surah_id),
+            verse_number: parseInt(testForm.verse_number),
+            occurrence_index: parseInt(testForm.occurrence_index) || 0,
+        });
+        if (ok) setTestModalOpen(false);
+    };
+
+    const confirmAnd = (msg, fn) => { if (window.confirm(msg)) fn(); };
+    const handleLogout = async () => { if (supabase) await supabase.auth.signOut(); router.replace('/'); };
+
+    // Effective form values = the admin's in-progress edits, else the saved settings,
+    // else built-in defaults. Never gate the form on loaded data (that caused an
+    // infinite spinner when the site_settings row/table didn't exist yet).
+    const settingsValue = settingsForm ?? { ...DEFAULT_FOOTER, ...(siteSettings || {}) };
+    const setSetting = (key, val) => setSettingsForm({ ...settingsValue, [key]: val });
+    const submitSettings = async (e) => {
+        e.preventDefault();
+        setSavingSettings(true);
+        await updateSiteSettings(settingsValue);
+        setSavingSettings(false);
     };
 
     const tabs = [
-        { id: 'stats', label: 'الإحصائيات', icon: <BarChart3 size={20} /> },
-        { id: 'users', label: 'المستخدمين', icon: <Users size={20} /> },
-        { id: 'lessons', label: 'الدروس', icon: <BookOpen size={20} /> },
+        { id: 'stats', label: 'نظرة عامة', icon: <BarChart3 size={16} /> },
+        { id: 'users', label: 'المستخدمين', icon: <Users size={16} /> },
+        { id: 'lessons', label: 'الدروس والاختبارات', icon: <BookOpen size={16} /> },
+        { id: 'settings', label: 'الإعدادات', icon: <Settings size={16} /> },
+    ];
+
+    // Fields rendered in the settings form (the footer/contact/legal info).
+    const settingFields = [
+        { key: 'description', label: 'وصف الموقع (التذييل)', textarea: true, icon: <BookOpen size={15} /> },
+        { key: 'email', label: 'البريد الإلكتروني', icon: <Mail size={15} />, placeholder: 'name@example.com' },
+        { key: 'phone', label: 'رقم الهاتف / واتساب', icon: <Phone size={15} />, placeholder: '+201234567890', dir: 'ltr' },
+        { key: 'whatsapp', label: 'رابط واتساب', icon: <Link2 size={15} />, placeholder: 'https://wa.me/2012...', dir: 'ltr' },
+        { key: 'facebook', label: 'رابط فيسبوك', icon: <Link2 size={15} />, placeholder: 'https://facebook.com/...', dir: 'ltr' },
+        { key: 'instagram', label: 'رابط إنستاجرام', icon: <Link2 size={15} />, placeholder: 'https://instagram.com/...', dir: 'ltr' },
+        { key: 'tiktok', label: 'رابط تيك توك', icon: <Link2 size={15} />, placeholder: 'https://tiktok.com/@...', dir: 'ltr' },
+        { key: 'support', label: 'رابط الدعم الفني', icon: <Link2 size={15} />, placeholder: 'https://...', dir: 'ltr' },
+        { key: 'privacy_url', label: 'سياسة الخصوصية (رابط)', icon: <Link2 size={15} />, placeholder: 'https://...', dir: 'ltr' },
+        { key: 'terms_url', label: 'شروط الاستخدام (رابط)', icon: <Link2 size={15} />, placeholder: 'https://...', dir: 'ltr' },
+        { key: 'disclaimer_url', label: 'إخلاء المسؤولية (رابط)', icon: <Link2 size={15} />, placeholder: 'https://...', dir: 'ltr' },
     ];
 
     const statCards = adminStats ? [
-        { label: 'إجمالي المستخدمين', value: adminStats.totalUsers, icon: <Users size={28} />, color: 'from-blue-500 to-blue-600', bg: 'bg-blue-50' },
-        { label: 'المشرفين', value: adminStats.totalAdmins, icon: <Crown size={28} />, color: 'from-amber-500 to-amber-600', bg: 'bg-amber-50' },
-        { label: 'الدروس المنشورة', value: adminStats.totalLessons, icon: <BookOpen size={28} />, color: 'from-emerald-500 to-emerald-600', bg: 'bg-emerald-50' },
-        { label: 'مستخدمين جدد (7 أيام)', value: adminStats.newUsersThisWeek, icon: <UserCog size={28} />, color: 'from-purple-500 to-purple-600', bg: 'bg-purple-50' },
+        { label: 'المستخدمين', value: adminStats.totalUsers, icon: <Users size={20} />, bg: 'rgba(45,125,82,0.14)', fg: '#1A5C3A' },
+        { label: 'المشرفين', value: adminStats.totalAdmins, icon: <Crown size={20} />, bg: 'rgba(212,175,55,0.18)', fg: '#8B6D2E' },
+        { label: 'الدروس المنشورة', value: adminStats.totalLessons, icon: <BookOpen size={20} />, bg: 'rgba(15,26,13,0.08)', fg: '#1B5E3B' },
+        { label: 'جلسات التلاوة', value: adminStats.totalSessions, icon: <Activity size={20} />, bg: 'rgba(28,18,8,0.08)', fg: '#3D2F1C' },
     ] : [];
 
-    // Avoid flashing admin content before the gate redirect resolves.
-    if (!isLoggedIn || !isAdmin) return null;
-
-    return (
-        <div className="admin-root flex bg-[#F8FAFC] min-h-screen w-full" dir="rtl">
-            {/* Sidebar */}
-            <aside className="w-64 bg-[#0F172A] text-white flex flex-col p-6 shrink-0 shadow-2xl z-50">
-                <div className="flex items-center gap-3 mb-10 pb-6 border-b border-gray-700">
-                    <div className="bg-primary p-2 rounded-lg"><ShieldCheck size={24} color="white" /></div>
-                    <h2 className="text-xl font-bold">لوحة الإدارة</h2>
+    // ── gate states ──
+    if (!authChecked || (isLoggedIn && !userProfile && !profileTried)) {
+        return (
+            <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, background: 'var(--parchment-50)' }} dir="rtl">
+                <Loader2 className="animate-spin" size={40} style={{ color: 'var(--emerald-700)' }} />
+                <p style={{ fontFamily: IBM, fontWeight: 700, color: 'var(--ink-600)' }}>جاري التحقق من الصلاحيات...</p>
+            </div>
+        );
+    }
+    if (!isLoggedIn) return null;
+    if (!isAdmin) {
+        return (
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--parchment-50)' }} dir="rtl">
+                <div style={{ ...CARD, padding: '40px', maxWidth: 440, width: '100%', textAlign: 'center' }}>
+                    <div style={{ width: 64, height: 64, margin: '0 auto 20px', borderRadius: 16, background: 'rgba(139,58,42,0.1)', color: '#8B3A2A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ShieldCheck size={32} /></div>
+                    <h1 style={{ fontFamily: RAKKAS, fontSize: '1.9rem', color: 'var(--ink-900)', marginBottom: 8 }}>لا تملك صلاحية الدخول</h1>
+                    <p style={{ fontFamily: IBM, color: 'var(--ink-600)', marginBottom: 4 }}>هذه الصفحة للمشرفين فقط.</p>
+                    <p style={{ fontFamily: IBM, color: 'var(--ink-500)', fontSize: '0.85rem', marginBottom: 24 }}>
+                        {userProfile
+                            ? <>دورك الحالي: <span style={{ fontWeight: 700, color: 'var(--ink-700)' }}>{userProfile.role || 'غير محدد'}</span></>
+                            : 'تعذّر تحميل ملفك الشخصي (تحقق من تشغيل ملفات الـ migration وسياسات RLS).'}
+                    </p>
+                    <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                        <button onClick={() => refreshUserProfile()} className="ui-btn ui-btn--primary">إعادة المحاولة</button>
+                        <button onClick={() => router.replace('/')} className="ui-btn ui-btn--ghost">الرئيسية</button>
+                    </div>
                 </div>
+            </div>
+        );
+    }
 
-                <nav className="flex-1 space-y-2">
-                    {tabs.map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`w-full flex items-center gap-3 p-3 rounded-xl border-none text-right font-medium cursor-pointer transition-all ${activeTab === tab.id
-                                ? 'bg-primary/20 text-primary'
-                                : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                                }`}
-                        >
-                            {tab.icon} {tab.label}
-                        </button>
-                    ))}
-                </nav>
-
-                <div className="mt-auto pt-6 border-t border-gray-700">
-                    <div className="flex items-center gap-3 mb-6 p-2 bg-gray-800/50 rounded-xl">
-                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-white shadow-inner uppercase">
-                            {currentUser?.name?.[0]}
+    // ── dashboard ──
+    return (
+        <div style={{ minHeight: '100vh', width: '100%', background: 'var(--parchment-50)', padding: '40px 20px' }} dir="rtl">
+        <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
+            {/* Header */}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
+                <div>
+                    <span className="ui-eyebrow"><ShieldCheck size={13} /> &nbsp;//&nbsp; لوحة التحكم</span>
+                    <h1 className="ui-title" style={{ fontFamily: RAKKAS, fontSize: '2.4rem', color: 'var(--ink-900)', margin: '4px 0 0' }}>لوحة الإدارة</h1>
+                    <p className="ui-sub" style={{ fontFamily: IBM, color: 'var(--ink-600)' }}>إدارة المستخدمين والمحتوى التعليمي والاختبارات.</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', ...CARD, borderRadius: 999 }}>
+                        <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#0F1A0D,#1A5C3A)', color: '#F1E6CA', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontFamily: IBM, textTransform: 'uppercase' }}>
+                            {(userProfile?.name || currentUser?.email || '?')[0]}
                         </div>
-                        <div className="overflow-hidden">
-                            <p className="font-bold text-sm truncate">{currentUser?.name}</p>
-                            <p className="text-xs text-gray-400">مشرف النظام</p>
+                        <div style={{ lineHeight: 1.2 }}>
+                            <div style={{ fontFamily: IBM, fontWeight: 700, fontSize: '0.82rem', color: 'var(--ink-900)' }}>{userProfile?.name || 'مشرف'}</div>
+                            <div style={{ fontFamily: IBM, fontSize: '0.7rem', color: 'var(--ink-500)' }}>مشرف النظام</div>
                         </div>
                     </div>
-                    <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 bg-red-500/10 text-red-400 p-3 rounded-xl hover:bg-red-50 hover:text-white transition-all border-none font-bold cursor-pointer">
-                        <LogOut size={18} /> تسجيل الخروج
-                    </button>
+                    <button onClick={handleLogout} className="ui-btn ui-btn--danger"><LogOut size={16} /> خروج</button>
                 </div>
-            </aside>
+            </motion.div>
 
-            {/* Main Content */}
-            <main className="flex-1 overflow-y-auto h-screen p-8 bg-[#F8FAFC]">
-                <div className="max-w-6xl mx-auto">
+            <div className="ui-divider" aria-hidden />
 
-                    {/* ============ STATS TAB ============ */}
-                    {activeTab === 'stats' && (
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                            <h1 className="text-4xl font-amiri text-gray-900 font-bold mb-2">نظرة عامة</h1>
-                            <p className="text-gray-500 mb-8">ملخص شامل عن حالة الموقع والبيانات</p>
+            {/* Tabs */}
+            <div className="ui-tabs" style={{ marginBottom: 28 }}>
+                {tabs.map((t) => (
+                    <button key={t.id} className={`ui-tab ${activeTab === t.id ? 'is-active' : ''}`} onClick={() => setActiveTab(t.id)}>{t.icon} {t.label}</button>
+                ))}
+            </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                                {statCards.map((card, i) => (
-                                    <motion.div
-                                        key={i}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: i * 0.1 }}
-                                        className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all"
-                                    >
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className={`${card.bg} p-3 rounded-xl`}>
-                                                {React.cloneElement(card.icon, { className: `text-${card.color.split('-')[1]}-600` })}
-                                            </div>
-                                        </div>
-                                        <p className="text-4xl font-bold text-gray-900 mb-1">{card.value}</p>
-                                        <p className="text-gray-500 text-sm">{card.label}</p>
-                                    </motion.div>
-                                ))}
+            {/* ===== OVERVIEW ===== */}
+            {activeTab === 'stats' && (
+                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
+                        {statCards.map((c, i) => (
+                            <motion.div key={i} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }} style={{ ...CARD, padding: '22px 24px' }}>
+                                <div style={{ width: 44, height: 44, borderRadius: 12, background: c.bg, color: c.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>{c.icon}</div>
+                                <div style={{ fontFamily: RAKKAS, fontSize: '2.6rem', color: 'var(--ink-900)', lineHeight: 1 }}>{c.value ?? '—'}</div>
+                                <div style={{ fontFamily: IBM, fontWeight: 700, fontSize: '0.82rem', color: 'var(--ink-600)', marginTop: 6 }}>{c.label}</div>
+                            </motion.div>
+                        ))}
+                    </div>
+
+                    {adminStats && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+                            <div style={{ ...CARD, padding: '22px 24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--ink-600)', marginBottom: 10 }}><UserCog size={16} /><span style={{ fontFamily: IBM, fontWeight: 700, fontSize: '0.8rem' }}>مستخدمون جدد (7 أيام)</span></div>
+                                <div style={{ fontFamily: RAKKAS, fontSize: '2.2rem', color: 'var(--ink-900)', lineHeight: 1 }}>{adminStats.newUsersThisWeek}</div>
                             </div>
+                            <div style={{ ...CARD, padding: '22px 24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--ink-600)', marginBottom: 10 }}><Target size={16} /><span style={{ fontFamily: IBM, fontWeight: 700, fontSize: '0.8rem' }}>سجلات التقدم</span></div>
+                                <div style={{ fontFamily: RAKKAS, fontSize: '2.2rem', color: 'var(--ink-900)', lineHeight: 1 }}>{adminStats.totalProgress}</div>
+                                <div style={{ fontFamily: IBM, fontSize: '0.72rem', color: 'var(--ink-500)', marginTop: 6 }}>منها {adminStats.completedProgress} مكتمل</div>
+                            </div>
+                            <div style={{ ...CARD, padding: '22px 24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--ink-600)', marginBottom: 10 }}><CheckCircle2 size={16} /><span style={{ fontFamily: IBM, fontWeight: 700, fontSize: '0.8rem' }}>نسبة إكمال الدروس</span></div>
+                                <div style={{ fontFamily: RAKKAS, fontSize: '2.2rem', color: 'var(--emerald-700)', lineHeight: 1 }}>{adminStats.completionRate}%</div>
+                                <div className="ui-bar" style={{ height: 8, marginTop: 12 }}>
+                                    <motion.span className="ui-bar-fill" initial={{ width: 0 }} animate={{ width: `${adminStats.completionRate}%` }} transition={{ duration: 0.8 }} style={{ display: 'block', background: 'var(--emerald-700)' }} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </motion.div>
+            )}
 
-                            {adminStats && (
-                                <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-                                    <h3 className="text-xl font-bold text-gray-800 mb-4">معلومات إضافية</h3>
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div className="bg-gray-50 p-4 rounded-xl">
-                                            <p className="text-gray-500 text-sm mb-1">إجمالي سجلات التقدم</p>
-                                            <p className="text-2xl font-bold text-gray-800">{adminStats.totalProgress}</p>
+            {/* ===== USERS ===== */}
+            {activeTab === 'users' && (
+                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+                    <div className="ui-action-row" style={{ marginBottom: 18 }}>
+                        <h2 style={{ fontFamily: RAKKAS, fontSize: '1.5rem', color: 'var(--ink-900)', margin: 0 }}>المستخدمون</h2>
+                        <span className="ui-badge">{adminUsers.length} مستخدم</span>
+                    </div>
+                    {isMobile ? (
+                        /* Mobile: stacked cards (a 5-col table is unreadable on a phone) */
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {adminUsers.map((user) => (
+                                <div key={user.id} style={{ ...CARD, padding: 16 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                                        <div style={{ width: 42, height: 42, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#FBF7EF', fontFamily: IBM, background: user.role === 'admin' ? 'linear-gradient(135deg,#B8963E,#8B6D2E)' : 'linear-gradient(135deg,#1B5E3B,#2D7D52)' }}>{user.name?.[0]?.toUpperCase()}</div>
+                                        <div style={{ minWidth: 0, flex: 1 }}>
+                                            <div style={{ fontFamily: IBM, fontWeight: 700, color: 'var(--ink-900)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</div>
+                                            <div style={{ fontFamily: IBM, fontSize: '0.78rem', color: 'var(--ink-500)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</div>
                                         </div>
-                                        <div className="bg-gray-50 p-4 rounded-xl">
-                                            <p className="text-gray-500 text-sm mb-1">نسبة الإكمال</p>
-                                            <p className="text-2xl font-bold text-emerald-600">{adminStats.completionRate}%</p>
+                                        <span className={`ui-badge ${user.role === 'admin' ? 'ui-badge--gold' : ''}`}>{user.role === 'admin' ? '🛡️ مشرف' : '👤 مستخدم'}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                        <span style={{ fontFamily: IBM, fontSize: '0.74rem', color: 'var(--ink-500)' }}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString('ar-EG') : '—'}</span>
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            <button onClick={() => updateUserRole(user.id, user.role === 'admin' ? 'user' : 'admin')} className="ui-btn" style={{ padding: '9px 14px', fontSize: '0.76rem' }}>{user.role === 'admin' ? 'تنزيل' : 'ترقية 🛡️'}</button>
+                                            <button onClick={() => confirmAnd('حذف هذا المستخدم وكل بياناته؟', () => deleteUser(user.id).then(fetchAdminStats))} className="ui-btn ui-btn--danger" style={{ padding: '9px 14px', fontSize: '0.76rem' }}>حذف</button>
                                         </div>
                                     </div>
                                 </div>
-                            )}
-                        </motion.div>
-                    )}
-
-                    {/* ============ USERS TAB ============ */}
-                    {activeTab === 'users' && (
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                            <h1 className="text-4xl font-amiri text-gray-900 font-bold mb-2">إدارة المستخدمين</h1>
-                            <p className="text-gray-500 mb-8">عرض وإدارة جميع المستخدمين المسجلين ({adminUsers.length} مستخدم)</p>
-
-                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                                <table className="w-full" style={{ borderCollapse: 'collapse' }}>
-                                    <thead>
-                                        <tr className="bg-gray-50 border-b border-gray-200">
-                                            <th className="text-right p-4 font-bold text-gray-600 text-sm">المستخدم</th>
-                                            <th className="text-right p-4 font-bold text-gray-600 text-sm">البريد الإلكتروني</th>
-                                            <th className="text-right p-4 font-bold text-gray-600 text-sm">الدور</th>
-                                            <th className="text-right p-4 font-bold text-gray-600 text-sm">تاريخ التسجيل</th>
-                                            <th className="text-center p-4 font-bold text-gray-600 text-sm">إجراءات</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {adminUsers.map((user) => (
-                                            <tr key={user._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                                <td className="p-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${user.role === 'admin' ? 'bg-amber-500' : 'bg-blue-500'}`}>
-                                                            {user.name?.[0]?.toUpperCase()}
-                                                        </div>
-                                                        <span className="font-bold text-gray-800">{user.name}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="p-4 text-gray-500 text-sm">{user.email}</td>
-                                                <td className="p-4">
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${user.role === 'admin' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
-                                                        {user.role === 'admin' ? '🛡️ مشرف' : '👤 مستخدم'}
-                                                    </span>
-                                                </td>
-                                                <td className="p-4 text-gray-400 text-sm">
-                                                    {new Date(user.createdAt).toLocaleDateString('ar-EG')}
-                                                </td>
-                                                <td className="p-4">
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        <button
-                                                            onClick={() => handleRoleChange(user._id, user.role === 'admin' ? 'user' : 'admin')}
-                                                            className={`px-3 py-2 rounded-xl text-xs font-bold border-none cursor-pointer transition-all ${user.role === 'admin'
-                                                                ? 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-                                                                : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
-                                                                }`}
-                                                            title={user.role === 'admin' ? 'تحويل لمستخدم' : 'ترقية لمشرف'}
-                                                        >
-                                                            {user.role === 'admin' ? 'تحويل لمستخدم' : 'ترقية لمشرف 🛡️'}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteUser(user._id)}
-                                                            className="px-3 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold border-none cursor-pointer hover:bg-red-100 transition-all"
-                                                        >
-                                                            حذف
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                {adminUsers.length === 0 && (
-                                    <div className="text-center py-10 text-gray-400">لا يوجد مستخدمين</div>
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {/* ============ LESSONS TAB ============ */}
-                    {activeTab === 'lessons' && (
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                            <div className="flex justify-between items-center mb-10">
-                                <div>
-                                    <h1 className="text-4xl font-amiri text-gray-900 font-bold mb-2">إدارة المحتوى التعليمي</h1>
-                                    <p className="text-gray-500">لديك الآن {lessons.length} دروس منشورة في النظام</p>
+                            ))}
+                            {adminUsers.length === 0 && <div className="ui-empty" style={{ fontFamily: IBM }}>لا يوجد مستخدمون</div>}
+                        </div>
+                    ) : (
+                    <div style={{ ...CARD, overflow: 'hidden' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 2.2fr 1fr 1.2fr 1.6fr', padding: '14px 20px', borderBottom: '1px solid #EBE3CE', background: '#FAF8F2' }}>
+                            {['المستخدم', 'البريد', 'الدور', 'التسجيل', 'إجراءات'].map((h, i) => (
+                                <span key={i} className="ui-stat-label" style={{ textAlign: i === 4 ? 'center' : 'start' }}>{h}</span>
+                            ))}
+                        </div>
+                        {adminUsers.map((user) => (
+                            <div key={user.id} style={{ display: 'grid', gridTemplateColumns: '2.2fr 2.2fr 1fr 1.2fr 1.6fr', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid #F1EADA' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                                    <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#FBF7EF', fontFamily: IBM, background: user.role === 'admin' ? 'linear-gradient(135deg,#B8963E,#8B6D2E)' : 'linear-gradient(135deg,#1B5E3B,#2D7D52)' }}>{user.name?.[0]?.toUpperCase()}</div>
+                                    <span style={{ fontFamily: IBM, fontWeight: 700, color: 'var(--ink-900)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</span>
                                 </div>
-                                <motion.button
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={() => handleOpenModal()}
-                                    className="flex items-center gap-2 bg-primary text-white px-8 py-4 rounded-2xl font-bold shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all cursor-pointer border-none"
-                                >
-                                    <Plus size={22} /> إضافة درس جديد
-                                </motion.button>
+                                <span style={{ fontFamily: IBM, fontSize: '0.84rem', color: 'var(--ink-500)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</span>
+                                <span><span className={`ui-badge ${user.role === 'admin' ? 'ui-badge--gold' : ''}`}>{user.role === 'admin' ? '🛡️ مشرف' : '👤 مستخدم'}</span></span>
+                                <span style={{ fontFamily: IBM, fontSize: '0.8rem', color: 'var(--ink-500)' }}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString('ar-EG') : '—'}</span>
+                                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                                    <button onClick={() => updateUserRole(user.id, user.role === 'admin' ? 'user' : 'admin')} className="ui-btn" style={{ padding: '7px 12px', fontSize: '0.74rem' }}>{user.role === 'admin' ? 'تنزيل' : 'ترقية 🛡️'}</button>
+                                    <button onClick={() => confirmAnd('حذف هذا المستخدم وكل بياناته؟', () => deleteUser(user.id).then(fetchAdminStats))} className="ui-btn ui-btn--danger" style={{ padding: '7px 12px', fontSize: '0.74rem' }}>حذف</button>
+                                </div>
                             </div>
+                        ))}
+                        {adminUsers.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'var(--ink-500)', fontFamily: IBM }}>لا يوجد مستخدمون</div>}
+                    </div>
+                    )}
+                </motion.div>
+            )}
 
-                            <div className="grid gap-6">
-                                {lessons.map((lesson) => (
-                                    <motion.div
-                                        key={lesson._id || lesson.id}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-all overflow-hidden"
-                                    >
-                                        <div className="p-6 flex justify-between items-center">
-                                            <div className="flex gap-6 items-center flex-1 cursor-pointer" onClick={() => setExpandedLesson(expandedLesson === (lesson._id || lesson.id) ? null : (lesson._id || lesson.id))}>
-                                                <div className="bg-gray-100 text-gray-400 p-4 rounded-2xl font-bold w-14 h-14 flex items-center justify-center text-xl">
-                                                    {lesson.sequence_order}
+            {/* ===== LESSONS ===== */}
+            {activeTab === 'lessons' && (
+                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+                    <div className="ui-action-row" style={{ marginBottom: 20 }}>
+                        <div>
+                            <h2 style={{ fontFamily: RAKKAS, fontSize: '1.5rem', color: 'var(--ink-900)', margin: 0 }}>المحتوى التعليمي</h2>
+                            <p style={{ fontFamily: IBM, fontSize: '0.82rem', color: 'var(--ink-500)', marginTop: 2 }}>{lessons.length} دروس · فيديوهات وأسئلة واختبارات عملية</p>
+                        </div>
+                        <button onClick={() => openLessonModal()} className="ui-btn ui-btn--primary"><Plus size={18} /> إضافة درس</button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {lessons.map((lesson) => {
+                            const open = expandedLesson === lesson.id;
+                            return (
+                                <div key={lesson.id} style={{ ...CARD, overflow: 'hidden' }}>
+                                    <div style={{ padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setExpandedLesson(open ? null : lesson.id)}>
+                                            <div style={{ width: 48, height: 48, borderRadius: 12, flexShrink: 0, background: 'rgba(212,175,55,0.15)', color: '#8B6D2E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: RAKKAS, fontSize: '1.5rem' }}>{lesson.sequence_order}</div>
+                                            <div style={{ minWidth: 0 }}>
+                                                <h3 style={{ fontFamily: RAKKAS, fontSize: '1.45rem', color: 'var(--ink-900)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lesson.title}</h3>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 4, fontFamily: IBM, fontSize: '0.78rem', color: 'var(--ink-500)', flexWrap: 'wrap' }}>
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Video size={13} /> {lesson.video_url ? 'فيديو متاح' : 'بدون فيديو'}</span>
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><HelpCircle size={13} /> {lesson.quizzes?.length || 0} أسئلة</span>
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Target size={13} /> {lesson.practical_tests?.length || 0} اختبارات</span>
                                                 </div>
-                                                <div>
-                                                    <h3 className="text-2xl font-bold text-gray-800 mb-1">{lesson.title}</h3>
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-gray-400 text-sm flex items-center gap-1">
-                                                            <Video size={14} /> {lesson.video_url ? 'فيديو متاح' : 'لا يوجد فيديو'}
-                                                        </span>
-                                                        <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                        <span className="text-gray-400 text-sm flex items-center gap-1">
-                                                            <HelpCircle size={14} className="mr-1" /> {lesson.quizzes?.length || 0} أسئلة
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-3 items-center">
-                                                <button onClick={() => handleOpenModal(lesson)} className="w-10 h-10 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all cursor-pointer border-none" title="تعديل">
-                                                    <Edit2 size={18} />
-                                                </button>
-                                                <button onClick={() => handleDelete(lesson._id || lesson.id)} className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all cursor-pointer border-none" title="حذف">
-                                                    <Trash2 size={18} />
-                                                </button>
-                                                <button onClick={() => setExpandedLesson(expandedLesson === (lesson._id || lesson.id) ? null : (lesson._id || lesson.id))} className="w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-500 rounded-xl hover:bg-gray-200 transition-all cursor-pointer border-none">
-                                                    <ChevronDown size={18} className={`transition-transform ${expandedLesson === (lesson._id || lesson.id) ? 'rotate-180' : ''}`} />
-                                                </button>
                                             </div>
                                         </div>
+                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            <button onClick={() => openLessonModal(lesson)} style={iconBtn('#1A5C3A')} title="تعديل"><Edit2 size={17} /></button>
+                                            <button onClick={() => confirmAnd('حذف هذا الدرس وكل أسئلته؟', () => deleteLesson(lesson.id).then(fetchAdminStats))} style={iconBtn('#8B3A2A', true)} title="حذف"><Trash2 size={17} /></button>
+                                            <button onClick={() => setExpandedLesson(open ? null : lesson.id)} style={iconBtn('var(--ink-500)')}><ChevronDown size={17} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} /></button>
+                                        </div>
+                                    </div>
 
-                                        {/* Expanded Quiz Section */}
-                                        <AnimatePresence>
-                                            {expandedLesson === (lesson._id || lesson.id) && (
-                                                <motion.div
-                                                    initial={{ height: 0, opacity: 0 }}
-                                                    animate={{ height: 'auto', opacity: 1 }}
-                                                    exit={{ height: 0, opacity: 0 }}
-                                                    className="border-t border-gray-100 overflow-hidden"
-                                                >
-                                                    <div className="p-6 bg-gray-50">
-                                                        <div className="flex justify-between items-center mb-4">
-                                                            <h4 className="font-bold text-gray-700 flex items-center gap-2">
-                                                                <HelpCircle size={18} /> أسئلة الاختبار ({lesson.quizzes?.length || 0})
-                                                            </h4>
-                                                            <button
-                                                                onClick={() => openQuizModal(lesson._id || lesson.id)}
-                                                                className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-xl text-sm font-bold border-none cursor-pointer hover:bg-primary-dark transition-all"
-                                                            >
-                                                                <Plus size={16} /> إضافة سؤال
-                                                            </button>
+                                    <AnimatePresence>
+                                        {open && (
+                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden', borderTop: '1px solid #EBE3CE' }}>
+                                                <div style={{ padding: 22, background: '#FAF8F2', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 22 }}>
+                                                    {/* Quizzes */}
+                                                    <div>
+                                                        <div className="ui-action-row" style={{ marginBottom: 14 }}>
+                                                            <h4 style={{ fontFamily: IBM, fontWeight: 700, color: 'var(--ink-700)', display: 'flex', alignItems: 'center', gap: 7, margin: 0 }}><HelpCircle size={16} /> أسئلة ({lesson.quizzes?.length || 0})</h4>
+                                                            <button onClick={() => openQuizModal(lesson.id)} className="ui-btn" style={{ padding: '7px 12px', fontSize: '0.76rem' }}><Plus size={14} /> سؤال</button>
                                                         </div>
-
-                                                        {lesson.quizzes && lesson.quizzes.length > 0 ? (
-                                                            <div className="space-y-3">
+                                                        {lesson.quizzes?.length ? (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                                                 {lesson.quizzes.map((quiz, qi) => (
-                                                                    <div key={quiz._id} className="bg-white p-4 rounded-xl border border-gray-200 flex justify-between items-start">
-                                                                        <div>
-                                                                            <p className="font-bold text-gray-800 mb-2">س{qi + 1}: {quiz.question}</p>
-                                                                            <div className="flex flex-wrap gap-2">
-                                                                                {quiz.options?.map((opt, oi) => (
-                                                                                    <span key={oi} className={`px-3 py-1 rounded-lg text-xs font-bold ${opt === quiz.correct_answer ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
-                                                                                        }`}>
-                                                                                        {opt} {opt === quiz.correct_answer && '✓'}
-                                                                                    </span>
-                                                                                ))}
+                                                                    <div key={quiz.id} style={{ background: '#FFFDF8', border: '1px solid #EBE3CE', borderRadius: 12, padding: 14 }}>
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
+                                                                            <p style={{ fontFamily: IBM, fontWeight: 700, color: 'var(--ink-900)', margin: '0 0 8px', fontSize: '0.9rem' }}>س{qi + 1}: {quiz.question}</p>
+                                                                            <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                                                                                <button onClick={() => openQuizModal(lesson.id, quiz)} style={{ ...iconBtn('#1A5C3A'), width: 30, height: 30 }}><Edit2 size={14} /></button>
+                                                                                <button onClick={() => confirmAnd('حذف هذا السؤال؟', () => deleteQuiz(quiz.id))} style={{ ...iconBtn('#8B3A2A', true), width: 30, height: 30 }}><Trash2 size={14} /></button>
                                                                             </div>
                                                                         </div>
-                                                                        <button onClick={() => handleDeleteQuiz(quiz._id)}
-                                                                            className="text-red-400 hover:text-red-600 bg-transparent border-none cursor-pointer p-1">
-                                                                            <Trash2 size={16} />
-                                                                        </button>
+                                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                                            {quiz.options?.map((opt, oi) => (
+                                                                                <span key={oi} className={`ui-badge ${opt === quiz.correct_answer ? 'ui-badge--ok' : ''}`} style={{ fontSize: '0.7rem', padding: '3px 10px' }}>{opt} {opt === quiz.correct_answer && '✓'}</span>
+                                                                            ))}
+                                                                        </div>
                                                                     </div>
                                                                 ))}
                                                             </div>
-                                                        ) : (
-                                                            <p className="text-gray-400 text-center py-6">لا توجد أسئلة بعد، اضغط &quot;إضافة سؤال&quot; لإضافة أول سؤال</p>
-                                                        )}
+                                                        ) : <p style={{ textAlign: 'center', color: 'var(--ink-500)', fontFamily: IBM, fontSize: '0.82rem', padding: '18px 0' }}>لا توجد أسئلة بعد</p>}
                                                     </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </motion.div>
-                                ))}
-                            </div>
 
-                            {lessons.length === 0 && (
-                                <div className="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 mt-10">
-                                    <p className="text-gray-400">لا توجد دروس حالياً، ابدأ بإضافة أول درس</p>
-                                </div>
-                            )}
-                        </motion.div>
-                    )}
-
-                </div>
-            </main>
-
-            {/* Lesson Form Modal */}
-            <AnimatePresence>
-                {isModalOpen && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-center justify-center p-4"
-                    >
-                        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-                            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="bg-primary p-6 text-white flex justify-between items-center">
-                                <h2 className="text-xl font-bold">{editingLesson ? 'تعديل الدرس' : 'إضافة درس جديد'}</h2>
-                                <button onClick={() => setIsModalOpen(false)} className="bg-transparent border-none text-white cursor-pointer hover:rotate-90 transition-all">
-                                    <X size={24} />
-                                </button>
-                            </div>
-                            <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">عنوان الدرس</label>
-                                    <input type="text" required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                        placeholder="مثلاً: أحكام النون الساكنة" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">الوصف</label>
-                                    <textarea rows="3" required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none"
-                                        placeholder="شرح مختصر للدرس..." />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="col-span-2">
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">فيديو الدرس</label>
-                                        <div className="flex gap-3 items-center">
-                                            <label className="flex-1 flex items-center justify-center gap-2 p-3 bg-emerald-50 border-2 border-dashed border-emerald-300 rounded-xl cursor-pointer hover:bg-emerald-100 transition-all">
-                                                <Video size={18} className="text-emerald-600" />
-                                                <span className="text-emerald-700 font-bold text-sm">{uploading ? 'جاري الرفع...' : 'رفع فيديو من الجهاز'}</span>
-                                                <input type="file" accept="video/*" className="hidden" disabled={uploading}
-                                                    onChange={async (e) => {
-                                                        const file = e.target.files[0];
-                                                        if (!file) return;
-                                                        setUploading(true);
-                                                        const token = await useAppStore.getState().getToken?.();
-                                                        const fd = new FormData();
-                                                        fd.append('video', file);
-                                                        try {
-                                                            const res = await fetch(`${API_BASE}/api/admin/upload-video`, {
-                                                                method: 'POST',
-                                                                headers: { 'Authorization': `Bearer ${token}` },
-                                                                body: fd
-                                                            });
-                                                            if (res.ok) {
-                                                                const data = await res.json();
-                                                                setFormData(prev => ({ ...prev, video_url: data.url }));
-                                                            }
-                                                        } catch (err) { console.error(err); }
-                                                        setUploading(false);
-                                                    }}
-                                                />
-                                            </label>
-                                        </div>
-                                        {formData.video_url && (
-                                            <div className="mt-2 flex items-center gap-2 bg-gray-50 p-2 rounded-lg">
-                                                <Video size={14} className="text-emerald-600" />
-                                                <span className="text-xs text-gray-500 truncate flex-1">{formData.video_url}</span>
-                                                <button type="button" onClick={() => setFormData({ ...formData, video_url: '' })} className="text-red-400 hover:text-red-600 bg-transparent border-none cursor-pointer">
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
+                                                    {/* Practical tests */}
+                                                    <div>
+                                                        <div className="ui-action-row" style={{ marginBottom: 14 }}>
+                                                            <h4 style={{ fontFamily: IBM, fontWeight: 700, color: 'var(--ink-700)', display: 'flex', alignItems: 'center', gap: 7, margin: 0 }}><Target size={16} /> اختبارات عملية ({lesson.practical_tests?.length || 0})</h4>
+                                                            <button onClick={() => openTestModal(lesson.id)} className="ui-btn" style={{ padding: '7px 12px', fontSize: '0.76rem' }}><Plus size={14} /> اختبار</button>
+                                                        </div>
+                                                        {lesson.practical_tests?.length ? (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                                                {lesson.practical_tests.map((t) => (
+                                                                    <div key={t.id} style={{ background: '#FFFDF8', border: '1px solid #EBE3CE', borderRadius: 12, padding: 14, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
+                                                                        <div>
+                                                                            <p style={{ fontFamily: IBM, fontWeight: 700, color: 'var(--ink-900)', margin: 0, fontSize: '0.9rem' }}>{t.target_word} <span style={{ fontSize: '0.72rem', color: '#8B6D2E' }}>({t.target_rule})</span></p>
+                                                                            <p style={{ fontFamily: IBM, fontSize: '0.72rem', color: 'var(--ink-500)', margin: '4px 0 0' }}>سورة {t.surah_id} · آية {t.verse_number}</p>
+                                                                            {t.instruction && <p style={{ fontFamily: IBM, fontSize: '0.72rem', color: 'var(--ink-600)', margin: '4px 0 0' }}>{t.instruction}</p>}
+                                                                        </div>
+                                                                        <button onClick={() => confirmAnd('حذف هذا الاختبار؟', () => deletePracticalTest(t.id))} style={{ ...iconBtn('#8B3A2A', true), width: 30, height: 30, flexShrink: 0 }}><Trash2 size={14} /></button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        ) : <p style={{ textAlign: 'center', color: 'var(--ink-500)', fontFamily: IBM, fontSize: '0.82rem', padding: '18px 0' }}>لا توجد اختبارات عملية</p>}
+                                                    </div>
+                                                </div>
+                                            </motion.div>
                                         )}
-                                        <p className="text-xs text-gray-400 mt-1">أو الصق رابط يوتيوب:</p>
-                                        <input type="url" value={formData.video_url} onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
-                                            className="w-full p-2 mt-1 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
-                                            placeholder="https://youtube.com/watch?v=..." />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">ترتيب الدرس</label>
-                                        <input type="number" required value={formData.sequence_order} onChange={(e) => setFormData({ ...formData, sequence_order: parseInt(e.target.value) })}
-                                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
-                                    </div>
+                                    </AnimatePresence>
                                 </div>
-                                <button type="submit" className="mt-4 w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg hover:bg-primary-dark transition-all flex items-center justify-center gap-2 cursor-pointer border-none font-bold">
-                                    <Save size={20} /> حفظ التعديلات
-                                </button>
+                            );
+                        })}
+                    </div>
+                    {lessons.length === 0 && <div className="ui-empty" style={{ marginTop: 8, fontFamily: IBM }}>لا توجد دروس، ابدأ بإضافة أول درس</div>}
+                </motion.div>
+            )}
+
+            {/* ===== SETTINGS (footer / contact / legal) ===== */}
+            {activeTab === 'settings' && (
+                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+                    <div style={{ marginBottom: 20 }}>
+                        <h2 style={{ fontFamily: RAKKAS, fontSize: '1.5rem', color: 'var(--ink-900)', margin: 0 }}>إعدادات التذييل والتواصل</h2>
+                        <p style={{ fontFamily: IBM, fontSize: '0.82rem', color: 'var(--ink-500)', marginTop: 2 }}>
+                            هذه البيانات تظهر في أسفل الموقع (Footer). تظهر روابط التواصل والقانونية فقط عند إدخال رابط لها.
+                        </p>
+                    </div>
+
+                    <form onSubmit={submitSettings} style={{ ...CARD, padding: 24, maxWidth: 760 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
+                            {settingFields.map((f) => (
+                                <div key={f.key} style={{ gridColumn: f.textarea ? '1 / -1' : 'auto' }}>
+                                    <label className="ui-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{f.icon} {f.label}</label>
+                                    {f.textarea ? (
+                                        <textarea className="ui-input" rows="2" value={settingsValue[f.key] || ''} onChange={(e) => setSetting(f.key, e.target.value)} style={{ resize: 'none' }} placeholder={f.placeholder} />
+                                    ) : (
+                                        <input className="ui-input" value={settingsValue[f.key] || ''} onChange={(e) => setSetting(f.key, e.target.value)} placeholder={f.placeholder} dir={f.dir || 'rtl'} />
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <button type="submit" disabled={savingSettings} className="ui-btn ui-btn--primary" style={{ justifyContent: 'center', padding: '14px', width: '100%', marginTop: 20, opacity: savingSettings ? 0.6 : 1 }}>
+                            {savingSettings ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} حفظ الإعدادات
+                        </button>
+                    </form>
+                </motion.div>
+            )}
+
+            {/* ===== Lesson modal ===== */}
+            <AnimatePresence>
+                {lessonModalOpen && (
+                    <motion.div className="ui-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setLessonModalOpen(false)}>
+                        <motion.div className="ui-modal" initial={{ scale: 0.92, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 16 }} style={{ maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+                            <div className="ui-modal-header">
+                                <h2 className="ui-modal-title">{editingLesson ? 'تعديل الدرس' : 'إضافة درس جديد'}</h2>
+                                <button className="ui-modal-close" onClick={() => setLessonModalOpen(false)}><X size={18} /></button>
+                            </div>
+                            <form onSubmit={submitLesson} className="ui-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                <div><label className="ui-label">عنوان الدرس</label><input className="ui-input" required value={lessonForm.title} onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })} placeholder="مثلاً: أحكام النون الساكنة" /></div>
+                                <div><label className="ui-label">الوصف</label><textarea className="ui-input" rows="3" value={lessonForm.description} onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })} style={{ resize: 'none' }} placeholder="شرح مختصر للدرس..." /></div>
+                                <div>
+                                    <label className="ui-label">فيديو الدرس</label>
+                                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, border: `2px dashed ${uploading ? '#DDCDA6' : 'rgba(45,125,82,0.4)'}`, borderRadius: 12, cursor: 'pointer', background: uploading ? '#F1EADA' : 'rgba(45,125,82,0.06)' }}>
+                                        {uploading ? <Loader2 size={18} className="animate-spin" style={{ color: 'var(--ink-500)' }} /> : <Upload size={18} style={{ color: 'var(--emerald-700)' }} />}
+                                        <span style={{ fontFamily: IBM, fontWeight: 700, fontSize: '0.84rem', color: 'var(--emerald-700)' }}>{uploading ? 'جاري الرفع...' : 'رفع فيديو من الجهاز'}</span>
+                                        <input type="file" accept="video/*" style={{ display: 'none' }} disabled={uploading} onChange={onVideoFile} />
+                                    </label>
+                                    {lessonForm.video_url && (
+                                        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, background: '#FAF8F2', padding: 8, borderRadius: 8, border: '1px solid #EBE3CE' }}>
+                                            <Video size={14} style={{ color: 'var(--emerald-700)' }} />
+                                            <span style={{ fontFamily: IBM, fontSize: '0.74rem', color: 'var(--ink-500)', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lessonForm.video_url}</span>
+                                            <button type="button" onClick={() => setLessonForm({ ...lessonForm, video_url: '' })} style={{ background: 'transparent', border: 'none', color: '#8B3A2A', cursor: 'pointer' }}><X size={14} /></button>
+                                        </div>
+                                    )}
+                                    <p style={{ fontFamily: IBM, fontSize: '0.72rem', color: 'var(--ink-500)', margin: '8px 0 4px' }}>أو الصق رابطًا (يوتيوب / رابط مباشر):</p>
+                                    <input className="ui-input" type="url" value={lessonForm.video_url} onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })} placeholder="https://..." style={{ fontSize: '0.84rem' }} />
+                                </div>
+                                <div><label className="ui-label">ترتيب الدرس</label><input className="ui-input" type="number" required min="1" value={lessonForm.sequence_order} onChange={(e) => setLessonForm({ ...lessonForm, sequence_order: parseInt(e.target.value) || 1 })} /></div>
+                                <button type="submit" disabled={uploading} className="ui-btn ui-btn--primary" style={{ justifyContent: 'center', padding: '14px', opacity: uploading ? 0.6 : 1 }}><Save size={18} /> حفظ</button>
                             </form>
                         </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* Quiz Form Modal */}
+            {/* ===== Quiz modal ===== */}
             <AnimatePresence>
                 {quizModalOpen && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1001] flex items-center justify-center p-4"
-                    >
-                        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-                            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] overflow-y-auto"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="bg-amber-500 p-6 text-white flex justify-between items-center">
-                                <h2 className="text-xl font-bold flex items-center gap-2"><HelpCircle size={22} /> إضافة سؤال جديد</h2>
-                                <button onClick={() => setQuizModalOpen(false)} className="bg-transparent border-none text-white cursor-pointer hover:rotate-90 transition-all">
-                                    <X size={24} />
-                                </button>
+                    <motion.div className="ui-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setQuizModalOpen(false)}>
+                        <motion.div className="ui-modal" initial={{ scale: 0.92, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 16 }} style={{ maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+                            <div className="ui-modal-header">
+                                <h2 className="ui-modal-title">{editingQuizId ? 'تعديل السؤال' : 'إضافة سؤال'}</h2>
+                                <button className="ui-modal-close" onClick={() => setQuizModalOpen(false)}><X size={18} /></button>
                             </div>
-                            <form onSubmit={handleQuizSubmit} className="p-6 flex flex-col gap-4">
+                            <form onSubmit={submitQuiz} className="ui-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                <div><label className="ui-label">نص السؤال</label><textarea className="ui-input" rows="2" required value={quizForm.question} onChange={(e) => setQuizForm({ ...quizForm, question: e.target.value })} style={{ resize: 'none' }} placeholder="مثلاً: ما الحكم التجويدي عند..." /></div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">نص السؤال</label>
-                                    <textarea rows="2" required value={quizForm.question} onChange={(e) => setQuizForm({ ...quizForm, question: e.target.value })}
-                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-200 focus:border-amber-400 outline-none transition-all resize-none"
-                                        placeholder="مثلاً: ما هو الحكم التجويدي عند..." />
+                                    <label className="ui-label">الخيارات</label>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        {quizForm.options.map((opt, i) => (
+                                            <input key={i} className="ui-input" value={opt} onChange={(e) => { const o = [...quizForm.options]; o[i] = e.target.value; setQuizForm({ ...quizForm, options: o }); }} placeholder={`الخيار ${i + 1}`} style={{ fontSize: '0.86rem' }} />
+                                        ))}
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">الخيارات (4 خيارات)</label>
-                                    {quizForm.options.map((opt, i) => (
-                                        <input key={i} type="text" required value={opt}
-                                            onChange={(e) => {
-                                                const newOpts = [...quizForm.options];
-                                                newOpts[i] = e.target.value;
-                                                setQuizForm({ ...quizForm, options: newOpts });
-                                            }}
-                                            className="w-full p-2.5 mb-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-200 focus:border-amber-400 outline-none transition-all text-sm"
-                                            placeholder={`الخيار ${i + 1}`} />
-                                    ))}
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">الإجابة الصحيحة</label>
-                                        <select required value={quizForm.correct_answer}
-                                            onChange={(e) => setQuizForm({ ...quizForm, correct_answer: e.target.value })}
-                                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none">
+                                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+                                    <div><label className="ui-label">الإجابة الصحيحة</label>
+                                        <select className="ui-select" required value={quizForm.correct_answer} onChange={(e) => setQuizForm({ ...quizForm, correct_answer: e.target.value })}>
                                             <option value="">اختر...</option>
-                                            {quizForm.options.filter(o => o).map((opt, i) => (
-                                                <option key={i} value={opt}>{opt}</option>
-                                            ))}
+                                            {quizForm.options.filter((o) => o.trim()).map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
                                         </select>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">النقاط</label>
-                                        <input type="number" required value={quizForm.points}
-                                            onChange={(e) => setQuizForm({ ...quizForm, points: parseInt(e.target.value) })}
-                                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none" />
-                                    </div>
+                                    <div><label className="ui-label">النقاط</label><input className="ui-input" type="number" required min="0" value={quizForm.points} onChange={(e) => setQuizForm({ ...quizForm, points: parseInt(e.target.value) || 0 })} /></div>
                                 </div>
-                                <button type="submit" className="mt-2 w-full py-4 bg-amber-500 text-white rounded-xl font-bold shadow-lg hover:bg-amber-600 transition-all flex items-center justify-center gap-2 cursor-pointer border-none font-bold">
-                                    <Save size={20} /> إضافة السؤال
-                                </button>
+                                <button type="submit" className="ui-btn ui-btn--primary" style={{ justifyContent: 'center', padding: '14px' }}><Save size={18} /> {editingQuizId ? 'حفظ التعديل' : 'إضافة السؤال'}</button>
                             </form>
                         </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* ===== Practical-test modal ===== */}
+            <AnimatePresence>
+                {testModalOpen && (
+                    <motion.div className="ui-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setTestModalOpen(false)}>
+                        <motion.div className="ui-modal" initial={{ scale: 0.92, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 16 }} style={{ maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+                            <div className="ui-modal-header">
+                                <h2 className="ui-modal-title">إضافة اختبار عملي</h2>
+                                <button className="ui-modal-close" onClick={() => setTestModalOpen(false)}><X size={18} /></button>
+                            </div>
+                            <form onSubmit={submitTest} className="ui-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+                                    <div><label className="ui-label">رقم السورة</label><input className="ui-input" type="number" required min="1" max="114" value={testForm.surah_id} onChange={(e) => setTestForm({ ...testForm, surah_id: e.target.value })} /></div>
+                                    <div><label className="ui-label">رقم الآية</label><input className="ui-input" type="number" required min="1" value={testForm.verse_number} onChange={(e) => setTestForm({ ...testForm, verse_number: e.target.value })} /></div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+                                    <div><label className="ui-label">الكلمة المستهدفة</label><input className="ui-input" required value={testForm.target_word} onChange={(e) => setTestForm({ ...testForm, target_word: e.target.value })} dir="rtl" /></div>
+                                    <div><label className="ui-label">الحكم المستهدف</label><input className="ui-input" required value={testForm.target_rule} onChange={(e) => setTestForm({ ...testForm, target_rule: e.target.value })} placeholder="madd / ghunna" /></div>
+                                </div>
+                                <div><label className="ui-label">التعليمات (اختياري)</label><input className="ui-input" value={testForm.instruction} onChange={(e) => setTestForm({ ...testForm, instruction: e.target.value })} placeholder="انطق الكلمة مع تطبيق الحكم" /></div>
+                                <button type="submit" className="ui-btn ui-btn--primary" style={{ justifyContent: 'center', padding: '14px' }}><Save size={18} /> إضافة الاختبار</button>
+                            </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
         </div>
     );
 }

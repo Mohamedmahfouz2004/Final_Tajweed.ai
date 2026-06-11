@@ -139,11 +139,70 @@ export const ERROR_TYPE_MAP = {
 };
 
 /**
+ * Alias map → canonical rule id.
+ * The AI model, older code paths, and the UI have used slightly different spellings
+ * for the same rule (ghunnah/ghunna, qalqalah/qalqala, makharij/phoneme …). Every
+ * read and write funnels through normalizeRuleId() so the taxonomy is consistent.
+ */
+export const RULE_ALIASES = {
+    ghunnah: 'ghunna',
+    ghonna: 'ghunna',
+    ahkam: 'ghunna',          // أحكام النون والميم → الغنة
+    qalqalah: 'qalqala',
+    qalqla: 'qalqala',
+    makharij: 'phoneme',
+    makhraj: 'phoneme',
+    tafkheem_or_taqeeq: 'tafkheem',
+    tarqeeq: 'tafkheem',
+    hams_or_jahr: 'hams_jahr',
+    hams: 'hams_jahr',
+    jahr: 'hams_jahr',
+    tikraar: 'sifat',
+    tafashie: 'sifat',
+    harakat: 'vowel',
+};
+
+/**
+ * Normalize any incoming rule/error id to its canonical key in ERROR_TYPE_MAP.
+ * Unknown ids pass through unchanged (resolveRule still returns a safe fallback).
+ */
+export function normalizeRuleId(raw) {
+    if (!raw || raw === 'none') return null;
+    const key = String(raw).trim().toLowerCase();
+    return RULE_ALIASES[key] || key;
+}
+
+/**
+ * Resolve a raw rule/error id to the canonical record the whole app stores and renders.
+ * Returns a stable shape: { rule_id, category, name, description, icon, color, lessonTitle }.
+ * This is THE function to use whenever writing a mistake row or labelling a rule.
+ */
+export function resolveRule(raw) {
+    const rule_id = normalizeRuleId(raw);
+    if (!rule_id) {
+        return {
+            rule_id: 'other', category: 'أخطاء أخرى', name: 'خطأ غير معروف',
+            description: '', icon: '❓', color: '#6B7280', lessonTitle: 'التجويد العام',
+        };
+    }
+    const info = ERROR_TYPE_MAP[rule_id];
+    if (!info) {
+        return {
+            rule_id, category: 'أخطاء أخرى', name: rule_id,
+            description: '', icon: '❓', color: '#6B7280', lessonTitle: 'التجويد العام',
+        };
+    }
+    return { rule_id, ...info };
+}
+
+/**
  * Get full info for an error type. Falls back to generic if unknown.
+ * Now alias-aware via normalizeRuleId().
  */
 export function getErrorInfo(errorType) {
-    if (!errorType || errorType === 'none') return null;
-    return ERROR_TYPE_MAP[errorType] || {
+    const rule_id = normalizeRuleId(errorType);
+    if (!rule_id) return null;
+    return ERROR_TYPE_MAP[rule_id] || {
         category: 'أخطاء أخرى',
         name: errorType,
         description: '',

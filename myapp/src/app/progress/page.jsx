@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, BookOpen, ArrowRight, Clock, ChevronDown, ChevronUp, Calendar, Flame, Activity, Target, BarChart3 } from 'lucide-react';
+import { Mic, BookOpen, ArrowRight, Clock, ChevronDown, ChevronUp, Calendar, Flame, Activity, Target, BarChart3, Square, Zap, Trophy } from 'lucide-react';
 import useAppStore from '../../store/useAppStore';
 import { getErrorInfo } from '../../utils/errorTypeMap';
 import AuthGuard from '../../components/AuthGuard';
@@ -52,6 +52,8 @@ const ProgressView = () => {
     const surahs = useAppStore(s => s.surahs);
     const fetchUserMistakes = useAppStore(s => s.fetchUserMistakes);
     const userMistakes = useAppStore(s => s.userActiveMistakes);
+    const fetchProgressOverview = useAppStore(s => s.fetchProgressOverview);
+    const overview = useAppStore(s => s.progressOverview);
 
     const [showHistory, setShowHistory] = useState(false);
     const [expandedSession, setExpandedSession] = useState(null);
@@ -62,6 +64,7 @@ const ProgressView = () => {
         fetchSessionsList();
         fetchSessionsSummary();
         fetchUserMistakes();
+        fetchProgressOverview();
         document.title = "تقدمي | Tajweed.ai";
     }, []);
 
@@ -81,45 +84,50 @@ const ProgressView = () => {
         } catch { return d; }
     };
 
-    // Mastery: transform to simple progress bars based on REAL Supabase data
+    // Mastery bars. Prefer the real rolling EWMA mastery (from user_rule_mastery,
+    // updated each recitation). Fall back to a corrected/total estimate from the
+    // mistakes table if the progress-system migration hasn't been applied yet.
     const masteryBars = useMemo(() => {
+        if (overview?.mastery?.length) {
+            return overview.mastery
+                .map((m) => ({
+                    id: m.rule_id,
+                    name: m.name || getRuleLabel(m.rule_id),
+                    emoji: m.icon || '🎯',
+                    color: m.color || 'var(--primary)',
+                    percent: m.percent,
+                }))
+                .sort((a, b) => b.percent - a.percent);
+        }
+
+        // Fallback (pre-migration): estimate from mistakes corrected/total.
         if (!userMistakes || userMistakes.length === 0) return [];
-        
-        // Group by rule_category
         const ruleStats = {};
-        userMistakes.forEach(m => {
+        userMistakes.forEach((m) => {
             const rule = m.rule_category;
             if (!ruleStats[rule]) {
                 ruleStats[rule] = { total: 0, corrected: 0, nameAr: m.rule_name_ar || getRuleLabel(rule) };
             }
             ruleStats[rule].total += 1;
-            if (m.is_corrected) {
-                ruleStats[rule].corrected += 1;
-            }
+            if (m.is_corrected) ruleStats[rule].corrected += 1;
         });
-
-        const labels = {
-            madd: { emoji: '〰️', color: 'var(--primary)' },
-            ghunnah: { emoji: '🗣️', color: 'var(--primary-dark)' },
-            qalqalah: { emoji: '🔔', color: 'var(--secondary)' },
-            makharij: { emoji: '🔤', color: '#C97B6A' },
-            ahkam: { emoji: '✨', color: '#8B3A2A' },
-        };
-
-        return Object.keys(ruleStats).map(key => {
+        return Object.keys(ruleStats).map((key) => {
             const stats = ruleStats[key];
-            // If they have 5 mistakes and 2 are corrected, mastery = 40%
-            // If total = 0, mastery = 100%
             const percent = stats.total > 0 ? Math.round((stats.corrected / stats.total) * 100) : 100;
+            const info = getErrorInfo(key);
             return {
                 id: key,
                 name: stats.nameAr || key,
-                emoji: labels[key]?.emoji || '🎯',
-                color: labels[key]?.color || 'var(--primary)',
-                percent: percent,
+                emoji: info?.icon || '🎯',
+                color: info?.color || 'var(--primary)',
+                percent,
             };
         }).sort((a, b) => b.percent - a.percent);
-    }, [userMistakes]);
+    }, [overview, userMistakes]);
+
+    const avgMastery = masteryBars.length > 0
+        ? Math.round(masteryBars.reduce((a, b) => a + b.percent, 0) / masteryBars.length)
+        : null;
 
     // Active Mistakes grouped by rule for display
     const activeMistakesList = useMemo(() => {
@@ -184,6 +192,20 @@ const ProgressView = () => {
     const hasProgression = !!dailyPlaylist?.progression;
     const hasAnyTask = hasRemediation || hasRevision || hasProgression;
 
+    // ── Gamification (streak / level / daily goal) ──
+    const streak = overview?.currentStreak || 0;
+    const longestStreak = overview?.longestStreak || 0;
+    const level = overview?.level || 1;
+    const xpInto = overview?.xpIntoLevel || 0;
+    const xpFor = overview?.xpForNextLevel || 500;
+    const dailyGoal = overview?.dailyGoal || 5;
+    const todayKey = new Date().toISOString().split('T')[0];
+    const todaySession = Array.isArray(sessionsList) ? sessionsList.find((s) => s.date === todayKey) : null;
+    const todayVerses = todaySession
+        ? todaySession.activities.reduce((a, act) => a + Math.max(1, (act.to_ayah || 0) - (act.from_ayah || 0) + 1), 0)
+        : 0;
+    const goalPct = Math.min(100, Math.round((todayVerses / Math.max(1, dailyGoal)) * 100));
+
     return (
         <motion.div variants={stagger} initial="hidden" animate="show" style={{ maxWidth: '1040px', margin: '0 auto', width: '100%' }} dir="rtl">
             {/* ─── PAGE HEAD ─── */}
@@ -199,12 +221,61 @@ const ProgressView = () => {
 
             <div className="ui-divider" aria-hidden />
 
+            {/* ─── GAMIFICATION STRIP (streak · level · daily goal) ─── */}
+            <motion.div variants={reveal} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                {/* Streak */}
+                <div style={{ background: 'linear-gradient(135deg, #FFF7ED 0%, #FFFDF8 100%)', border: '1px solid #F5C99B', borderRadius: '18px', padding: '20px 22px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ width: 52, height: 52, borderRadius: 14, background: streak > 0 ? 'linear-gradient(135deg,#F97316,#EA580C)' : '#E7E0CF', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Flame size={26} fill={streak > 0 ? 'currentColor' : 'none'} />
+                    </div>
+                    <div>
+                        <div style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '2.2rem', color: 'var(--ink-900)', lineHeight: 1 }}>{streak}</div>
+                        <div style={{ fontFamily: 'var(--font-ibm)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--ink-600)', marginTop: 4 }}>
+                            يوم متتالي{longestStreak > streak ? ` · الأطول ${longestStreak}` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Level + XP */}
+                <div style={{ background: '#FFFDF8', border: '1px solid #DDCDA6', borderRadius: '18px', padding: '20px 22px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span className="ui-tile-icon" style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(218,165,32,0.15)', color: 'var(--brass-500)' }}><Trophy size={18} /></span>
+                            <span style={{ fontFamily: 'var(--font-ibm)', fontWeight: 700, fontSize: '0.82rem', color: 'var(--ink-700)' }}>المستوى {level}</span>
+                        </div>
+                        <span style={{ fontFamily: 'var(--font-ibm)', fontWeight: 700, fontSize: '0.74rem', color: 'var(--ink-500)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Zap size={12} /> {xpInto}/{xpFor}
+                        </span>
+                    </div>
+                    <div className="ui-bar" style={{ height: 10 }}>
+                        <motion.span className="ui-bar-fill" initial={{ width: 0 }} animate={{ width: `${Math.round((xpInto / xpFor) * 100)}%` }} transition={{ duration: 0.8 }}
+                            style={{ display: 'block', background: 'linear-gradient(90deg,#DAA520,#B8860B)' }} />
+                    </div>
+                </div>
+
+                {/* Daily goal */}
+                <div style={{ background: '#FFFDF8', border: '1px solid #DDCDA6', borderRadius: '18px', padding: '20px 22px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0 }}>
+                        <svg width="52" height="52" viewBox="0 0 52 52" style={{ transform: 'rotate(-90deg)' }}>
+                            <circle cx="26" cy="26" r="22" fill="none" stroke="#EBE3CE" strokeWidth="6" />
+                            <circle cx="26" cy="26" r="22" fill="none" stroke="var(--emerald-700)" strokeWidth="6" strokeLinecap="round"
+                                strokeDasharray={2 * Math.PI * 22} strokeDashoffset={2 * Math.PI * 22 * (1 - goalPct / 100)} />
+                        </svg>
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-ibm)', fontWeight: 800, fontSize: '0.8rem', color: 'var(--ink-900)' }}>{goalPct}%</div>
+                    </div>
+                    <div>
+                        <div style={{ fontFamily: 'var(--font-rakkas), Rakkas', fontSize: '1.5rem', color: 'var(--ink-900)', lineHeight: 1 }}>{todayVerses}<span style={{ fontSize: '0.95rem', color: 'var(--ink-500)' }}> / {dailyGoal}</span></div>
+                        <div style={{ fontFamily: 'var(--font-ibm)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--ink-600)', marginTop: 4 }}>هدف اليوم (آيات)</div>
+                    </div>
+                </div>
+            </motion.div>
+
             {/* ─── QUICK STATS ─── */}
-            <motion.div variants={reveal} style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '40px' }}>
+            <motion.div variants={reveal} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '40px' }}>
                 {[
                     { icon: <Calendar size={18} />, label: 'جلسة تدريب', value: totalSessions },
                     { icon: <Clock size={18} />, label: 'وقت التلاوة', value: formatTime(totalRecitationTime) },
-                    { icon: <Target size={18} />, label: 'متوسط الإتقان', value: masteryBars.length > 0 ? `${Math.round(masteryBars.reduce((a, b) => a + b.percent, 0) / masteryBars.length)}%` : '—' },
+                    { icon: <Target size={18} />, label: 'متوسط الإتقان', value: avgMastery != null ? `${avgMastery}%` : '—' },
                 ].map((stat, i) => (
                     <div key={i} style={{
                         background: '#FFFDF8', border: '1px solid #DDCDA6', borderRadius: '18px', padding: '24px',
@@ -220,7 +291,7 @@ const ProgressView = () => {
                 ))}
             </motion.div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px' }}>
+            <div className="ui-split-main">
                 {/* ─── DAILY PLAN ─── */}
                 <motion.div variants={reveal}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
@@ -366,14 +437,14 @@ const ProgressView = () => {
                                     {group.examples.map((ex) => (
                                         <div key={ex.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#FAF8F2', borderRadius: '10px', border: '1px solid #EBE3CE' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                <button onClick={() => playMistakeAudio(ex.surah_number, ex.ayah_number, ex.id)} style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--primary)', color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: 'none' }}>
+                                                <button className="tap" onClick={() => playMistakeAudio(ex.surah_number, ex.ayah_number, ex.id)} style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--primary)', color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: 'none' }}>
                                                     {playingMistakeAya === ex.id ? <Square size={12} fill="currentColor" /> : <Mic size={14} />}
                                                 </button>
                                                 <div>
                                                     <div style={{ fontFamily: 'var(--font-ibm)', fontSize: '0.82rem', color: 'var(--ink-600)' }}>
                                                         {getSurahName(ex.surah_number)} - آية {ex.ayah_number}
                                                     </div>
-                                                    <div style={{ fontFamily: 'var(--font-quran)', fontSize: '1.1rem', color: 'var(--ink-900)', marginTop: 4 }}>
+                                                    <div className="selectable" style={{ fontFamily: 'var(--font-quran)', fontSize: '1.1rem', color: 'var(--ink-900)', marginTop: 4 }}>
                                                         ... {ex.ayah_text} ...
                                                     </div>
                                                 </div>
