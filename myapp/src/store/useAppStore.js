@@ -11,20 +11,38 @@ const useAppStore = create((set, get) => ({
     // --- Auth State (synced from Supabase) ---
     isLoggedIn: false,
     currentUser: null,
+    userProfile: null,
+    setUserProfile: (profile) => set({ userProfile: profile }),
     
     initAuth: () => {
         if (typeof window === 'undefined') return;
         if (!supabase) return;
         
+        const fetchProfileData = async (user) => {
+            if (!user) return;
+            try {
+                const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+                if (data) {
+                    set({ userProfile: data });
+                    if (data.preferred_reciter) set({ selectedReciter: data.preferred_reciter });
+                    if (data.moshaf_settings && Object.keys(data.moshaf_settings).length > 0) set({ moshafSettings: data.moshaf_settings });
+                }
+            } catch (e) {
+                console.error("Error fetching profile on auth init:", e);
+            }
+        };
+
         // Initial session check
         supabase.auth.getSession().then(({ data: { session } }) => {
             set({ isLoggedIn: !!session, currentUser: session?.user || null });
+            if (session?.user) fetchProfileData(session.user);
             // if (session?.user) get().fetchUserProgress();
         });
 
         // Listen for auth changes (login, logout)
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             set({ isLoggedIn: !!session, currentUser: session?.user || null });
+            if (session?.user) fetchProfileData(session.user);
             // if (session?.user) get().fetchUserProgress();
         });
         
@@ -72,7 +90,16 @@ const useAppStore = create((set, get) => ({
         weeklyStats: [],
         mistakeStats: [],
         completedLessons: 0,
-        completedLessonsList: []
+        completedLessonsList: [],
+        practicalProgress: {}, // { lessonId: [testId1, testId2, ...] }
+    },
+
+    markPracticalTestPassed: (lessonId, testId) => {
+        get().updateSupabaseProgress(lessonId, { practical_passed_add: testId });
+    },
+
+    markPracticalTestFailed: (lessonId, testId) => {
+        get().updateSupabaseProgress(lessonId, { practical_failed_add: testId });
     },
 
     // --- Adaptive Data ---
@@ -80,26 +107,69 @@ const useAppStore = create((set, get) => ({
     masteryRadar: null,
 
     fetchAdaptiveData: async () => {
-        const token = await get().getToken?.();
-        if (!token) return;
+        const userId = get().currentUser?.id;
+        if (!userId) {
+            set({ dailyPlaylist: { remediation_practice: [], warmup_revision: [], progression: null } });
+            return;
+        }
 
         try {
-            const [playlistRes, radarRes] = await Promise.all([
-                fetch(`${API_BASE}/api/adaptive/daily-playlist`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch(`${API_BASE}/api/adaptive/mastery-radar`, { headers: { 'Authorization': `Bearer ${token}` } })
-            ]);
+            // Fetch mistakes for remediation & revision
+            const { data: mistakesData } = await supabase.from('mistakes').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+            
+            // Fetch latest session for progression
+            const { data: sessionsData } = await supabase.from('sessions').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1);
 
-            if (playlistRes.ok) {
-                const playlistData = await playlistRes.json();
-                if (playlistData.success) set({ dailyPlaylist: playlistData.data });
+            const activeMistakes = (mistakesData || []).filter(m => !m.is_corrected);
+            const correctedMistakes = (mistakesData || []).filter(m => m.is_corrected);
+
+            // Group active mistakes by rule
+            const groupedActive = {};
+            activeMistakes.forEach(m => {
+                if (!groupedActive[m.rule_category]) groupedActive[m.rule_category] = [];
+                groupedActive[m.rule_category].push(m);
+            });
+
+            // Pick top 2 rules for remediation
+            const remediation = Object.values(groupedActive)
+                .sort((a, b) => b.length - a.length)
+                .slice(0, 2)
+                .map(group => ({
+                    rule: group[0].rule_category,
+                    surah: group[0].surah_number,
+                    ayah: group[0].ayah_number
+                }));
+
+            // Pick 1 recent corrected rule for warmup
+            const warmup = correctedMistakes.length > 0 ? [{
+                rule: correctedMistakes[0].rule_category,
+                surah: correctedMistakes[0].surah_number,
+                ayah: correctedMistakes[0].ayah_number
+            }] : [];
+
+            // Progression: Continue from last session
+            let progression = null;
+            if (sessionsData && sessionsData.length > 0) {
+                const lastSession = sessionsData[0];
+                progression = {
+                    surah: lastSession.surah_number,
+                    from_ayah: lastSession.to_ayah + 1 // Start from the next ayah
+                };
+            } else {
+                progression = { surah: 1, from_ayah: 1 }; // Default Al-Fatihah
             }
 
-            if (radarRes.ok) {
-                const radarData = await radarRes.json();
-                if (radarData.success) set({ masteryRadar: radarData.data });
-            }
+            set({
+                dailyPlaylist: {
+                    remediation_practice: remediation,
+                    warmup_revision: warmup,
+                    progression: progression
+                }
+            });
+
         } catch (err) {
-            console.error('[STORE] Failed to fetch adaptive data:', err);
+            console.error('[STORE] Failed to compute adaptive data:', err);
+            set({ dailyPlaylist: { remediation_practice: [], warmup_revision: [], progression: { surah: 1, from_ayah: 1 } } });
         }
     },
 
@@ -110,42 +180,74 @@ const useAppStore = create((set, get) => ({
     sessionsPagination: null,
 
     fetchSessionsList: async (from, to) => {
-        const token = await get().getToken?.();
-        if (!token) return;
+        const userId = get().currentUser?.id;
+        if (!userId) return;
         try {
-            let url = `${API_BASE}/api/sessions/list`;
-            const params = [];
-            if (from) params.push(`from=${from}`);
-            if (to) params.push(`to=${to}`);
-            if (params.length) url += '?' + params.join('&');
-
-            const res = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                set({ sessionsList: data.sessions });
-                return data;
+            let query = supabase.from('sessions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+            
+            if (from) query = query.gte('created_at', from);
+            if (to) query = query.lte('created_at', to);
+            
+            const { data, error } = await query;
+            if (error) throw error;
+            
+            if (data) {
+                // Group by day to format it as the UI expects (Daily Sessions)
+                const grouped = {};
+                data.forEach(row => {
+                    const dateStr = new Date(row.created_at).toISOString().split('T')[0];
+                    if (!grouped[dateStr]) {
+                        grouped[dateStr] = {
+                            _id: dateStr,
+                            date: dateStr,
+                            created_at: dateStr,
+                            total_mistakes: 0,
+                            total_corrections: 0,
+                            activities: []
+                        };
+                    }
+                    grouped[dateStr].activities.push({
+                        type: 'recitation',
+                        surah_number: row.surah_number,
+                        from_ayah: row.from_ayah,
+                        to_ayah: row.to_ayah,
+                        mistakes_count: row.total_mistakes,
+                        duration_seconds: row.duration_seconds
+                    });
+                    grouped[dateStr].total_mistakes += (row.total_mistakes || 0);
+                });
+                
+                const sessions = Object.values(grouped).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                set({ sessionsList: sessions });
+                return { sessions };
             }
         } catch (err) {
-            console.error('[SESSION] Failed to fetch sessions list:', err);
+            console.error('[SESSION] Failed to fetch sessions list from Supabase:', err);
         }
     },
 
     fetchSessionsSummary: async () => {
-        const token = await get().getToken?.();
-        if (!token) return;
+        const userId = get().currentUser?.id;
+        if (!userId) return;
         try {
-            const res = await fetch(`${API_BASE}/api/sessions/summary`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                set({ sessionsSummary: data });
-                return data;
+            const { data, error } = await supabase.from('sessions').select('created_at, duration_seconds, total_mistakes').eq('user_id', userId);
+            if (error) throw error;
+            
+            if (data) {
+                const uniqueDays = new Set(data.map(row => {
+                    if (!row.created_at) return 'unknown';
+                    return new Date(row.created_at).toISOString().split('T')[0];
+                })).size;
+                const summary = {
+                    total_sessions: uniqueDays, // Total active days
+                    total_recitation_time_seconds: data.reduce((acc, curr) => acc + (curr.duration_seconds || 0), 0),
+                    total_mistakes: data.reduce((acc, curr) => acc + (curr.total_mistakes || 0), 0)
+                };
+                set({ sessionsSummary: summary });
+                return summary;
             }
         } catch (err) {
-            console.error('[SESSION] Failed to fetch sessions summary:', err);
+            console.error('[SESSION] Failed to fetch sessions summary from Supabase:', err);
         }
     },
 
@@ -153,14 +255,20 @@ const useAppStore = create((set, get) => ({
     fetchLessons: async () => {
         set({ isLoadingLessons: true });
         try {
-            const data = await fetchJsonSafe(`${API_BASE}/api/lessons`);
-            if (Array.isArray(data)) {
+            const { data, error } = await supabase
+                .from('lessons')
+                .select('*, quizzes(*), practical_tests(*)')
+                .order('sequence_order', { ascending: true });
+                
+            if (error) throw error;
+            
+            if (data && Array.isArray(data)) {
                 set({ lessons: data });
             } else {
                 set({ lessons: [] });
             }
         } catch (error) {
-            console.error("Error fetching lessons:", error);
+            console.error("Error fetching lessons from Supabase:", error);
             set({ lessons: [] });
         } finally {
             set({ isLoadingLessons: false });
@@ -168,24 +276,64 @@ const useAppStore = create((set, get) => ({
     },
 
     fetchUserProgress: async () => {
-        const token = await get().getToken?.();
-        if (!token) return;
+        const userId = get().currentUser?.id;
+        if (!userId) return;
 
-        const data = await fetchJsonSafe(`${API_BASE}/api/progress/summary`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!data) return;
+        // Fetch Supabase lesson progress
+        const { data: supaProgress } = await supabase
+            .from('progress')
+            .select('*')
+            .eq('user_id', userId);
+
+        const practicalProgress = {};
+        const completedLessonIds = [];
+        const lessonProgressDetails = {};
+        let completedLessons = 0;
+
+        if (supaProgress) {
+            supaProgress.forEach(p => {
+                practicalProgress[p.lesson_id] = p.practical_passed || [];
+                lessonProgressDetails[p.lesson_id] = p;
+                if (p.status === 'completed') {
+                    completedLessonIds.push(p.lesson_id);
+                    completedLessons++;
+                }
+            });
+        }
+
+        // Keep the old API call for mistake stats if needed
+        let totalMistakes = 0;
+        let weeklyStats = [];
+        let mistakeStats = [];
+        let versesPracticed = 0;
+        let averageAccuracy = 0;
+        
+        const token = await get().getToken?.();
+        if (token) {
+            const data = await fetchJsonSafe(`${API_BASE}/api/progress/summary`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (data) {
+                totalMistakes = data.mistakes?.reduce((acc, curr) => acc + (curr.count || 0), 0) || 0;
+                weeklyStats = data.weekly || [];
+                mistakeStats = data.mistakes || [];
+                versesPracticed = data.versesPracticed || 0;
+                averageAccuracy = data.averageAccuracy || 0;
+            }
+        }
 
         set({
             userProgress: {
                 ...get().userProgress,
-                totalMistakes: data.mistakes?.reduce((acc, curr) => acc + (curr.count || 0), 0) || 0,
-                weeklyStats: data.weekly || [],
-                mistakeStats: data.mistakes || [],
-                versesPracticed: data.versesPracticed || 0,
-                completedLessons: data.completedLessons || 0,
-                averageAccuracy: data.averageAccuracy || 0,
-                completedLessonsList: data.completedLessonIds || []
+                practicalProgress,
+                lessonProgressDetails,
+                totalMistakes,
+                weeklyStats,
+                mistakeStats,
+                versesPracticed,
+                completedLessons,
+                averageAccuracy,
+                completedLessonsList: completedLessonIds
             }
         });
     },
@@ -204,35 +352,58 @@ const useAppStore = create((set, get) => ({
         }
     },
 
-    updateUserProgress: async (lessonId, status, score) => {
-        const token = await get().getToken?.();
-        if (!token) return;
+    updateSupabaseProgress: async (lessonId, updates) => {
+        const userId = get().currentUser?.id;
+        if (!userId) return;
 
-        try {
-            console.log('[STORE] Updating progress for lesson:', lessonId, { status, score });
-            const res = await fetch(`${API_BASE}/api/progress/update`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ lesson_id: lessonId, status, score })
-            });
+        // Get current progress to merge arrays properly
+        const { data: current } = await supabase
+            .from('progress')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('lesson_id', lessonId)
+            .single();
 
-            if (res.ok) {
-                const result = await res.json();
-                console.log('[STORE] Update success:', result);
-                get().fetchUserProgress(); // Refresh stats
-                return result;
+        let payload = { user_id: userId, lesson_id: lessonId, last_accessed: new Date().toISOString() };
+        
+        if (current) {
+            payload = { ...current, ...payload };
+        } else {
+            payload = { ...payload, theoretical_score: 0, theoretical_answers: {}, practical_passed: [], practical_failed: [], video_watched: false, score: 0, status: 'in_progress' };
+        }
+
+        if (updates.theoretical_score !== undefined) payload.theoretical_score = updates.theoretical_score;
+        if (updates.theoretical_answers !== undefined) {
+            // If explicitly passing empty object, clear it. Otherwise merge.
+            if (Object.keys(updates.theoretical_answers).length === 0) {
+                payload.theoretical_answers = {};
             } else {
-                const errData = await res.json();
-                console.error('[STORE] Update failed. Error Details:', errData);
-                get().showToast(`❌ حدث خطأ: ${errData.msg || 'فشل الحفظ'}`);
-                throw new Error(errData.msg || 'Update failed');
+                payload.theoretical_answers = { ...(payload.theoretical_answers || {}), ...updates.theoretical_answers };
             }
-        } catch (err) {
-            console.error('Failed to update progress:', err);
-            throw err;
+        }
+        if (updates.video_watched !== undefined) payload.video_watched = updates.video_watched;
+        if (updates.is_completed !== undefined) {
+            payload.status = updates.is_completed ? 'completed' : 'in_progress';
+        }
+        
+        if (updates.practical_passed_add) {
+            if (!payload.practical_passed) payload.practical_passed = [];
+            if (!payload.practical_passed.includes(updates.practical_passed_add)) {
+                payload.practical_passed.push(updates.practical_passed_add);
+            }
+        }
+        if (updates.practical_failed_add) {
+            if (!payload.practical_failed) payload.practical_failed = [];
+            if (!payload.practical_failed.includes(updates.practical_failed_add)) {
+                payload.practical_failed.push(updates.practical_failed_add);
+            }
+        }
+
+        const { error } = await supabase.from('progress').upsert(payload, { onConflict: 'user_id, lesson_id' });
+        if (!error) {
+            get().fetchUserProgress();
+        } else {
+            console.error("Error updating Supabase progress:", error?.message, error?.details, error?.code, "Payload:", payload);
         }
     },
 
@@ -740,45 +911,137 @@ const useAppStore = create((set, get) => ({
     setLastSessionMetrics: (val) => set({ lastSessionMetrics: val }),
 
     updateLiveMistake: async (errorType, context = {}) => {
-        set((state) => {
-            const currentMistakes = [...state.userProgress.mistakeStats];
-            const existing = currentMistakes.find(m => m.name === errorType);
-
-            if (existing) {
-                existing.count += 1;
-            } else {
-                currentMistakes.push({ name: errorType, count: 1 });
-            }
-
-            return {
-                userProgress: {
-                    ...state.userProgress,
-                    mistakeStats: currentMistakes,
-                    totalMistakes: (state.userProgress.totalMistakes || 0) + 1
-                }
-            };
-        });
+        // Legacy stub to prevent breaking old code
     },
 
     logSessionActivity: async (activity) => {
-        const token = await get().getToken?.();
-        if (!token) return;
+        // Legacy stub
+    },
+
+    userActiveMistakes: [],
+
+    fetchUserMistakes: async () => {
+        const userId = get().currentUser?.id;
+        if (!userId) return;
+
         try {
-            const data = await fetchJsonSafe(`${API_BASE}/api/sessions/activity`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ ...activity, local_date: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0') })
-            });
+            const { data, error } = await supabase
+                .from('mistakes')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            
             if (data) {
-                console.log(`[SESSION] Activity logged: ${activity.type}`);
+                set({ userActiveMistakes: data });
                 return data;
             }
-        } catch (err) {
-            console.warn('[SESSION] Failed to log activity:', err);
+        } catch (error) {
+            console.error("Failed to fetch user mistakes:", error);
         }
+    },
+
+    saveRecitationSession: async (sessionData) => {
+        const userId = get().currentUser?.id;
+        if (!userId) return null;
+
+        try {
+            const { data, error } = await supabase
+                .from('sessions')
+                .insert([{
+                    user_id: userId,
+                    surah_number: sessionData.surah_number,
+                    from_ayah: sessionData.from_ayah,
+                    to_ayah: sessionData.to_ayah,
+                    duration_seconds: sessionData.duration_seconds || 0,
+                    total_mistakes: sessionData.total_mistakes || 0,
+                    score: sessionData.score || 0
+                }])
+                .select('id')
+                .single();
+
+            if (error) throw error;
+            return data.id;
+        } catch (error) {
+            console.error("Failed to save session to Supabase:", error);
+            return null;
+        }
+    },
+
+    processLiveMistakes: async (sessionId, currentErrors, getAyahNumberFn, surahNumber, startAyah, endAyah) => {
+        const userId = get().currentUser?.id;
+        if (!userId) return;
+
+        const { data: existingMistakes, error: fetchErr } = await supabase
+            .from('mistakes')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('is_corrected', false);
+
+        if (fetchErr) {
+            console.error("Failed to fetch existing mistakes:", fetchErr);
+            return;
+        }
+
+        const errorChars = currentErrors.filter(ch => ch.error);
+        const newMistakesToInsert = [];
+        const mistakesToCorrect = [];
+
+        errorChars.forEach(ch => {
+            const ayahNum = getAyahNumberFn(ch.index);
+            const exists = existingMistakes.find(m => 
+                m.rule_category === ch.error_type && 
+                m.ayah_number === ayahNum && 
+                m.char_index === ch.index
+            );
+
+            if (!exists) {
+                newMistakesToInsert.push({
+                    user_id: userId,
+                    lesson_id: null,
+                    error_type: ch.error_type || 'tajweed',
+                    rule_category: ch.error_type,
+                    rule_name_ar: ch.tooltip || ch.error_type,
+                    surah_number: surahNumber,
+                    ayah_number: ayahNum,
+                    ayah_text: ch.char,
+                    char_index: ch.index,
+                    is_corrected: false,
+                    occurrence_count: 1
+                });
+            }
+        });
+
+        const mistakesInScope = existingMistakes.filter(m => 
+            m.surah_number === surahNumber && 
+            m.ayah_number >= startAyah && 
+            m.ayah_number <= endAyah
+        );
+
+        mistakesInScope.forEach(m => {
+            const stillExists = errorChars.find(ch => 
+                ch.error_type === m.rule_category && 
+                getAyahNumberFn(ch.index) === m.ayah_number &&
+                ch.index === m.char_index
+            );
+
+            if (!stillExists) {
+                mistakesToCorrect.push(m.id);
+            }
+        });
+
+        if (newMistakesToInsert.length > 0) {
+            await supabase.from('mistakes').insert(newMistakesToInsert);
+        }
+
+        if (mistakesToCorrect.length > 0) {
+            await supabase.from('mistakes')
+                .update({ is_corrected: true, corrected_at: new Date().toISOString() })
+                .in('id', mistakesToCorrect);
+        }
+
+        get().fetchUserMistakes();
     },
 
     fetchSessionAnalytics: async (sessionId) => {

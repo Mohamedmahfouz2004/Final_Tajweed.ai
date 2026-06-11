@@ -39,20 +39,16 @@ export default function PracticePage() {
       <div className="ui-divider" aria-hidden />
 
       {/* Tabs + listen shortcut */}
-      <motion.div variants={reveal} className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+      <motion.div variants={reveal} className="flex items-center justify-start mb-6 flex-wrap">
         <div className="ui-tabs">
           <button type="button" className={`ui-tab ${tab === 'record' ? 'is-active' : ''}`}
             onClick={() => setPracticeActiveTab('record')}>
             <Mic size={13} /> سجّل
           </button>
-          <button type="button" className={`ui-tab ${tab === 'settings' ? 'is-active' : ''}`}
-            onClick={() => setPracticeActiveTab('settings')}>
-            <Settings size={13} /> الإعدادات
+          <button type="button" className="ui-tab" onClick={() => router.push('/listen')}>
+            <Headphones size={14} /> استمع أولاً
           </button>
         </div>
-        <button type="button" className="ui-btn ui-btn--ghost" onClick={() => router.push('/listen')}>
-          <Headphones size={14} /> استمع أولاً
-        </button>
       </motion.div>
 
       {/* Panel */}
@@ -86,7 +82,14 @@ export default function PracticePage() {
 
           {tab === 'settings' && (
             <motion.div key="settings" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-              <MoshafSettings />
+              <div className="ui-card flex flex-col items-center justify-center p-12 text-center">
+                <Settings size={40} className="mb-4 text-brass-500" />
+                <h3 className="text-xl font-bold mb-2">إعدادات القراءة والتجويد</h3>
+                <p className="text-ink-600 mb-6">تم نقل جميع إعدادات القراءة والشيخ المفضل إلى صفحة الحساب لتكون افتراضية دائماً.</p>
+                <button onClick={() => router.push('/profile')} className="ui-cta">
+                  الذهاب لصفحة الحساب
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

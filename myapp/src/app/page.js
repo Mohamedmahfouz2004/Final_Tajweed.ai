@@ -479,6 +479,7 @@ export default function HomeView() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px', alignItems: 'stretch' }}>
               {/* Feature 1: Listen */}
               <motion.div 
+                className="group"
                 variants={reveal}
                 onClick={() => router.push('/listen')}
                 whileHover={{ y: -5, boxShadow: '0 18px 40px -15px rgba(212,175,55,0.3)' }}
@@ -511,13 +512,14 @@ export default function HomeView() {
                 </p>
                 <div style={{ marginTop: 'auto', alignSelf: 'flex-start' }}>
                   <span className="hm-quiet-btn" style={{ fontSize: '0.82rem', pointerEvents: 'none' }}>
-                    ابدأ الاستماع <ChevronRight size={13} className="flip" />
+                    ابدأ الاستماع <ChevronRight size={13} className="-scale-x-100 transform transition-transform duration-300 group-hover:-translate-x-1.5" />
                   </span>
                 </div>
               </motion.div>
 
               {/* Feature 2: Practice */}
               <motion.div 
+                className="group"
                 variants={reveal}
                 onClick={() => router.push('/register')}
                 whileHover={{ y: -5, boxShadow: '0 18px 40px -15px rgba(212,175,55,0.3)' }}
@@ -550,13 +552,14 @@ export default function HomeView() {
                 </p>
                 <div style={{ marginTop: 'auto', alignSelf: 'flex-start' }}>
                   <span className="hm-quiet-btn" style={{ fontSize: '0.82rem', pointerEvents: 'none' }}>
-                    سجّل للبدء <ChevronRight size={13} className="flip" />
+                    سجّل للبدء <ChevronRight size={13} className="-scale-x-100 transform transition-transform duration-300 group-hover:-translate-x-1.5" />
                   </span>
                 </div>
               </motion.div>
 
               {/* Feature 3: Lessons */}
               <motion.div 
+                className="group"
                 variants={reveal}
                 onClick={() => router.push('/register')}
                 whileHover={{ y: -5, boxShadow: '0 18px 40px -15px rgba(212,175,55,0.3)' }}
@@ -589,13 +592,14 @@ export default function HomeView() {
                 </p>
                 <div style={{ marginTop: 'auto', alignSelf: 'flex-start' }}>
                   <span className="hm-quiet-btn" style={{ fontSize: '0.82rem', pointerEvents: 'none' }}>
-                    سجّل للبدء <ChevronRight size={13} className="flip" />
+                    سجّل للبدء <ChevronRight size={13} className="-scale-x-100 transform transition-transform duration-300 group-hover:-translate-x-1.5" />
                   </span>
                 </div>
               </motion.div>
 
               {/* Feature 4: Tafseer */}
               <motion.div 
+                className="group"
                 variants={reveal}
                 onClick={() => router.push('/tafseer')}
                 whileHover={{ y: -5, boxShadow: '0 18px 40px -15px rgba(212,175,55,0.3)' }}
@@ -628,7 +632,7 @@ export default function HomeView() {
                 </p>
                 <div style={{ marginTop: 'auto', alignSelf: 'flex-start' }}>
                   <span className="hm-quiet-btn" style={{ fontSize: '0.82rem', pointerEvents: 'none' }}>
-                    تصفح التفسير <ChevronRight size={13} className="flip" />
+                    تصفح التفسير <ChevronRight size={13} className="-scale-x-100 transform transition-transform duration-300 group-hover:-translate-x-1.5" />
                   </span>
                 </div>
               </motion.div>

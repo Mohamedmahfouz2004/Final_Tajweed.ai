@@ -21,7 +21,7 @@ export default function LessonsPage() {
     const userProgress = useAppStore(s => s.userProgress);
     const fetchUserProgress = useAppStore(s => s.fetchUserProgress);
     const isLoggedIn = useAppStore(s => s.isLoggedIn);
-    const openAuthModal = useAppStore(s => s.openAuthModal);
+    const requireAuth = useAppStore(s => s.requireAuth);
 
     React.useEffect(() => {
         fetchLessons();
@@ -53,7 +53,7 @@ export default function LessonsPage() {
                             </div>
                         </div>
                         <button
-                            onClick={openAuthModal}
+                            onClick={() => requireAuth()}
                             className="px-6 py-2.5 text-sm rounded-lg font-bold transition-all w-full sm:w-auto"
                             style={{ backgroundColor: '#1E3B22', color: '#FBF7EF', fontFamily: 'var(--font-ibm)' }}
                             onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#152918'}
@@ -67,7 +67,7 @@ export default function LessonsPage() {
 
             <div className="ui-divider" aria-hidden />
 
-            <motion.div variants={reveal} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <motion.div variants={reveal} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px', alignItems: 'stretch' }}>
                 {isLoadingLessons ? (
                     <div className="col-span-full ui-panel" style={{ textAlign: 'center', padding: '52px 24px' }}>
                         <BookOpen size={36} style={{ color: 'var(--ink-500)', margin: '0 auto 14px' }} />
@@ -77,16 +77,34 @@ export default function LessonsPage() {
                     </div>
                 ) : lessons.length > 0 ? (
                     lessons.map((lesson, idx) => {
-                        const isCompleted = userProgress?.completedLessonsList?.includes(lesson._id?.toString() || lesson.id?.toString());
+                        const lessonIdStr = lesson._id?.toString() || lesson.id?.toString();
+                        const details = userProgress?.lessonProgressDetails?.[lessonIdStr] || {};
+                        const theoreticalScore = details.theoretical_score || 0;
+                        const passedPractical = details.practical_passed?.length || 0;
+                        const totalPractical = lesson.practical_tests?.length || 0;
+                        
+                        const isPracticalDone = totalPractical > 0 ? passedPractical === totalPractical : true;
+                        const isTheoreticalDone = theoreticalScore >= 80;
+                        const isCompleted = isPracticalDone && isTheoreticalDone;
+                        const isVideoWatched = !!details.video_watched;
+                        const answeredCount = Object.keys(details.theoretical_answers || {}).length;
+                        const totalQuestions = lesson.quizzes?.length || 1;
+                        const hasTheoreticalAttempt = answeredCount > 0 || theoreticalScore > 0;
+                        const isTheoreticalInProgress = answeredCount > 0 && answeredCount < totalQuestions;
+
                         return (
-                            <motion.div key={lesson._id || lesson.id || idx} variants={reveal}>
+                            <motion.div key={lessonIdStr || idx} variants={reveal} className="h-full">
                                 <LessonCard
                                     lesson={lesson}
                                     index={idx}
                                     isCompleted={isCompleted}
+                                    isVideoWatched={isVideoWatched}
+                                    theoreticalScore={theoreticalScore}
+                                    hasTheoreticalAttempt={hasTheoreticalAttempt}
+                                    isTheoreticalInProgress={isTheoreticalInProgress}
                                     onSelect={() => {
                                         if (!isLoggedIn) {
-                                            openAuthModal();
+                                            requireAuth();
                                         } else {
                                             router.push(`/lessons/${lesson._id || lesson.id}`);
                                         }

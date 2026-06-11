@@ -2,7 +2,7 @@
   {
     "name": "rewaya",
     "label": "الرواية",
-    "default": null,
+    "default": "hafs",
     "type": "select",
     "options": [
       {
@@ -38,7 +38,7 @@
   {
     "name": "madd_monfasel_len",
     "label": "مد المنفصل",
-    "default": null,
+    "default": "4",
     "type": "select",
     "options": [
       {
@@ -62,7 +62,7 @@
   {
     "name": "madd_mottasel_len",
     "label": "مقدار المد المتصل",
-    "default": null,
+    "default": "4",
     "type": "select",
     "options": [
       {
@@ -82,7 +82,7 @@
   {
     "name": "madd_mottasel_waqf",
     "label": "مقدار المد المتصل وقفا",
-    "default": null,
+    "default": "4",
     "type": "select",
     "options": [
       {
@@ -102,7 +102,7 @@
   {
     "name": "madd_aared_len",
     "label": "مقدار المد العارض",
-    "default": null,
+    "default": "2",
     "type": "select",
     "options": [
       {
@@ -122,7 +122,7 @@
   {
     "name": "madd_alleen_len",
     "label": "مقدار مد اللين",
-    "default": null,
+    "default": "2",
     "type": "select",
     "options": [
       {

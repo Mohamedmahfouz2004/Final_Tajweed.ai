@@ -12,15 +12,20 @@ import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-
 import useAppStore from '../store/useAppStore';
 import { supabase } from '../utils/supabaseClient';
 import { useRouter } from 'next/navigation';
+import { useOnClickOutside } from '../hooks/useOnClickOutside';
 
 const Navbar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const isLoggedIn = useAppStore(state => state.isLoggedIn);
+  const userProfile = useAppStore(state => state.userProfile);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(false);
   const [isVisible, setIsVisible] = React.useState(true);
+  const profileMenuRef = React.useRef(null);
+
+  useOnClickOutside(profileMenuRef, () => setIsProfileMenuOpen(false));
 
   // Robust scroll detection using Framer Motion
   const { scrollY } = useScroll();
@@ -130,7 +135,7 @@ const Navbar = () => {
         >
 
           {isLoggedIn ? (
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative' }} ref={profileMenuRef}>
               <button 
                 title="الحساب"
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
@@ -150,7 +155,13 @@ const Navbar = () => {
                 onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(212, 175, 55, 0.25)' }}
                 onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(212, 175, 55, 0.15)' }}
               >
-                <User size={18} />
+                {userProfile?.avatar_url ? (
+                  <img src={userProfile.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                ) : userProfile?.name ? (
+                  <span style={{ fontWeight: 'bold', fontSize: '15px' }}>{userProfile.name.charAt(0).toUpperCase()}</span>
+                ) : (
+                  <User size={18} />
+                )}
               </button>
 
               <AnimatePresence>

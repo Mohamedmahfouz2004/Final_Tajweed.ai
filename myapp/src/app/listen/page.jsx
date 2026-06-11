@@ -145,6 +145,18 @@ function ListenView() {
 
       <div className="ui-divider" aria-hidden />
 
+      {/* Tabs */}
+      <motion.div variants={reveal} className="flex items-center justify-start mb-6 flex-wrap">
+        <div className="ui-tabs">
+          <button type="button" className="ui-tab" onClick={testYourself}>
+            <Mic size={13} /> سجّل
+          </button>
+          <button type="button" className="ui-tab is-active">
+            <Headphones size={14} /> استمع أولاً
+          </button>
+        </div>
+      </motion.div>
+
       {/* Selectors */}
       <motion.div variants={reveal} className="ui-card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14 }}>
@@ -183,7 +195,12 @@ function ListenView() {
             <span className="ui-label">من الآية</span>
             <input type="number" min={1} max={maxVerses} value={listenFromVerse ?? ''} className="ui-input font-num"
               style={{ textAlign: 'center', fontWeight: 600 }}
-              onChange={e => setListenFromVerse(e.target.value)}
+              onChange={e => {
+                const val = e.target.value;
+                if (val === '') return setListenFromVerse('');
+                const parsed = parseInt(val);
+                setListenFromVerse(parsed > maxVerses ? maxVerses : parsed);
+              }}
               onBlur={e => setListenFromVerse(clampVerse(e.target.value))} />
           </div>
 
@@ -192,7 +209,12 @@ function ListenView() {
             <span className="ui-label">إلى الآية</span>
             <input type="number" min={1} max={maxVerses} value={listenToVerse ?? ''} className="ui-input font-num"
               style={{ textAlign: 'center', fontWeight: 600 }}
-              onChange={e => setListenToVerse(e.target.value)}
+              onChange={e => {
+                const val = e.target.value;
+                if (val === '') return setListenToVerse('');
+                const parsed = parseInt(val);
+                setListenToVerse(parsed > maxVerses ? maxVerses : parsed);
+              }}
               onBlur={e => setListenToVerse(clampVerse(e.target.value))} />
           </div>
 

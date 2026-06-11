@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mic, Square, CheckCircle, XCircle, Target, Award } from 'lucide-react';
 import useAppStore from '../../../store/useAppStore';
@@ -9,13 +9,16 @@ import UthmaniViewer from '../../../components/UthmaniViewer';
 import { getErrorInfo } from '../../../utils/errorTypeMap';
 import { API_BASE, WS_BASE } from '../../../utils/apiConfig';
 
-const MUAALEM_WS_URL = `${WS_BASE}/ws/stream`;
+const MUAALEM_WS_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'ws://127.0.0.1:8888/ws/stream'
+    : `${WS_BASE}/ws/stream`;
 const API_URL = API_BASE;
 
 export default function PracticalQuizPage({ params }) {
     const paramsResolved = React.use(params);
     const errorType = paramsResolved.errorType;
     const router = useRouter();
+    const searchParams = useSearchParams();
     const errorInfo = getErrorInfo(errorType);
 
     const [quizData, setQuizData] = useState(null);
@@ -23,6 +26,7 @@ export default function PracticalQuizPage({ params }) {
     const [results, setResults] = useState([]);
     const [isRecording, setIsRecording] = useState(false);
     const [wsConnected, setWsConnected] = useState(false);
+    const [connectionError, setConnectionError] = useState(null);
     const [structuredChars, setStructuredChars] = useState(null);
     const [displayUthmani, setDisplayUthmani] = useState('');
     const [showResults, setShowResults] = useState(false);
@@ -37,18 +41,61 @@ export default function PracticalQuizPage({ params }) {
 
     useEffect(() => {
         const fetchQuiz = async () => {
-            const token = await useAppStore.getState().getToken?.();
-            if (!token) { router.push('/'); return; }
             try {
-                const res = await fetch(`${API_URL}/api/progress/practical-quiz/${errorType}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                setQuizData(await res.json());
-            } catch (err) { console.error('Failed to fetch quiz:', err); }
+                if (errorType === 'by-ayah') {
+                    const surah = searchParams.get('surah');
+                    const ayah = searchParams.get('ayah');
+                    
+                    if (surah && ayah) {
+                        const quranRes = await fetch(`https://api.quran.com/api/v4/verses/by_chapter/${surah}?language=ar&words=false&per_page=300&fields=text_uthmani`);
+                        const quranData = await quranRes.json();
+                        const verseText = quranData.verses.find(v => v.verse_number == ayah)?.text_uthmani || '';
+                        
+                        setQuizData({
+                            verses: [{
+                                surah_number: parseInt(surah),
+                                ayah_number: parseInt(ayah),
+                                ayah_text: verseText,
+                                char_indices: []
+                            }]
+                        });
+                    }
+                } else {
+                    const state = useAppStore.getState();
+                    // Load mistakes if not loaded
+                    if (!state.userActiveMistakes || state.userActiveMistakes.length === 0) {
+                        await state.fetchUserMistakes();
+                    }
+                    const activeMistakes = useAppStore.getState().userActiveMistakes?.filter(m => m.rule_category === errorType && !m.is_corrected) || [];
+                    
+                    if (activeMistakes.length > 0) {
+                        const uniqueVerses = [];
+                        const seen = new Set();
+                        for (const m of activeMistakes) {
+                            const key = `${m.surah_number}-${m.ayah_number}`;
+                            if (!seen.has(key) && uniqueVerses.length < 3) { // max 3 verses
+                                seen.add(key);
+                                const quranRes = await fetch(`https://api.quran.com/api/v4/verses/by_chapter/${m.surah_number}?language=ar&words=false&per_page=300&fields=text_uthmani`);
+                                const quranData = await quranRes.json();
+                                const verseText = quranData.verses.find(v => v.verse_number == m.ayah_number)?.text_uthmani || '';
+                                uniqueVerses.push({
+                                    surah_number: m.surah_number,
+                                    ayah_number: m.ayah_number,
+                                    ayah_text: verseText,
+                                    char_indices: []
+                                });
+                            }
+                        }
+                        setQuizData({ verses: uniqueVerses });
+                    } else {
+                        setQuizData({ verses: [] });
+                    }
+                }
+            } catch (err) { console.error('Failed to setup quiz:', err); }
             setLoading(false);
         };
         fetchQuiz();
-    }, [errorType, router]);
+    }, [errorType, searchParams]);
 
     const currentVerse = quizData?.verses?.[currentVerseIdx];
     const totalVerses = quizData?.verses?.length || 0;
@@ -57,7 +104,10 @@ export default function PracticalQuizPage({ params }) {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;
         const ws = new WebSocket(MUAALEM_WS_URL);
         ws.binaryType = 'arraybuffer';
-        ws.onopen = () => setWsConnected(true);
+        ws.onopen = () => {
+            setWsConnected(true);
+            setConnectionError(null);
+        };
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.type === 'started') {
@@ -69,7 +119,10 @@ export default function PracticalQuizPage({ params }) {
             }
         };
         ws.onclose = () => setWsConnected(false);
-        ws.onerror = (err) => console.error('WS error:', err);
+        ws.onerror = () => {
+            setWsConnected(false);
+            setConnectionError('تعذر الاتصال بخادم الذكاء الاصطناعي. يرجى التأكد من تشغيله.');
+        };
         wsRef.current = ws;
     }, []);
 
@@ -142,16 +195,22 @@ export default function PracticalQuizPage({ params }) {
         setResults(prev => [...prev, { verse: currentVerse, passed }]);
 
         if (passed) {
-            const token = await useAppStore.getState().getToken?.();
-            if (token) {
-                try {
-                    await fetch(`${API_URL}/api/progress/mark-corrected`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ error_type: errorType, surah_number: currentVerse.surah_number, ayah_number: currentVerse.ayah_number }),
-                    });
-                } catch (err) { console.error('Failed to mark corrected:', err); }
-            }
+            try {
+                const targetRule = errorType === 'by-ayah' ? searchParams.get('errors') : errorType;
+                if (targetRule && targetRule !== 'unknown') {
+                    const userId = useAppStore.getState().currentUser?.id;
+                    if (userId) {
+                        const { supabase } = await import('../../../utils/supabaseClient');
+                        await supabase
+                            .from('mistakes')
+                            .update({ is_corrected: true, corrected_at: new Date().toISOString() })
+                            .eq('user_id', userId)
+                            .eq('surah_number', currentVerse.surah_number)
+                            .eq('ayah_number', currentVerse.ayah_number)
+                            .eq('rule_category', targetRule);
+                    }
+                }
+            } catch (err) { console.error('Failed to mark corrected:', err); }
         }
 
         if (currentVerseIdx < totalVerses - 1) {
@@ -290,6 +349,13 @@ export default function PracticalQuizPage({ params }) {
             <div className="ui-bar mb-6">
                 <motion.div animate={{ width: `${((currentVerseIdx + 1) / totalVerses) * 100}%` }} className="ui-bar-fill" />
             </div>
+
+            {connectionError && (
+                <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', padding: '12px 16px', borderRadius: '12px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <XCircle size={18} />
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{connectionError}</span>
+                </div>
+            )}
 
             <motion.div key={currentVerseIdx} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} className="ui-panel mb-4" style={{ padding: 28, textAlign: 'center' }}>
                 <span className="ui-eyebrow">سورة {currentVerse?.surah_number} · آية {currentVerse?.ayah_number}</span>

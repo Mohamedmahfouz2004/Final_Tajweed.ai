@@ -20,6 +20,9 @@ class ProgressUpdate(BaseModel):
     lesson_id: str
     status: ProgressStatus
     score: int = 0
+    theoretical_score: int = 0
+    practical_tests: dict = Field(default_factory=dict) # {"test_id": "passed" / "failed"}
+    video_watched: bool = False
 
 
 class MistakeLog(BaseModel):

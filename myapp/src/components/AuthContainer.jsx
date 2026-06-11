@@ -105,6 +105,9 @@ export default function AuthContainer({ initialMode = 'login' }) {
       setError('البريد الإلكتروني أو كلمة المرور غير صحيحة.');
     } else {
       router.push('/');
+    }
+  };
+
   const handleRequestOTP = async (e) => {
     e?.preventDefault();
     if (!email) {
@@ -344,7 +347,7 @@ export default function AuthContainer({ initialMode = 'login' }) {
                       <p>جديد معنا؟ <button type="button" onClick={() => switchMode('register')} className="text-[#1B5E3B] hover:text-[#0A3527] font-bold" style={{background:'none', border:'none', padding:0, cursor:'pointer'}}>إنشاء حساب</button></p>
                     </div>
                   </motion.div>
-                ) : (
+                ) : mode === 'register' ? (
                   <motion.div
                     key="register"
                     custom={direction}
@@ -544,7 +547,7 @@ export default function AuthContainer({ initialMode = 'login' }) {
                       <p><button type="button" onClick={() => switchMode('login')} className="text-[#1C1208] hover:text-[#0A3527] font-bold" style={{background:'none', border:'none', padding:0, cursor:'pointer'}}>العودة لتسجيل الدخول</button></p>
                     </div>
                   </motion.div>
-                )}
+                ) : null}
               </AnimatePresence>
             </motion.div>
           </main>

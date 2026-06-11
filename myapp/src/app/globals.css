@@ -3172,3 +3172,20 @@ label {
 /* --- REACT DATEPICKER FIXES --- */
 .react-datepicker-popper { z-index: 9999 !important; }
 .react-datepicker__month-select, .react-datepicker__year-select { background-color: #FDFCF5; color: #1C1208; border-radius: 4px; padding: 2px 4px; border: 1px solid rgba(212, 175, 55, 0.5); font-family: inherit; font-size: 13px; font-weight: bold; outline: none; margin: 0 4px; }
+
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: var(--parchment-50); border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--sand-400); border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--brass-400); }
+
+.hm-quiet-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--parchment-100); border: 1px solid rgba(212,196,160,0.9);
+  border-radius: 999px; padding: 8px 15px;
+  font-family: 'IBM Plex Sans Arabic', sans-serif;
+  font-size: 0.8rem; color: var(--ink-700); cursor: pointer;
+  transition: all 0.15s ease; white-space: nowrap;
+}
+.hm-quiet-btn:hover { background: var(--parchment-200); border-color: var(--brass-500); }

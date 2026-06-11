@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mic, Square, Activity, Clock, Layers, X, BookOpen, Info } from 'lucide-react';
 import useAppStore from '../../store/useAppStore';
-import AuthGuard from '../../components/AuthGuard';
 import UthmaniViewer from '../../components/UthmaniViewer';
 import MushafRevealEngine from '../../components/mushaf/MushafRevealEngine';
 import { REVEAL_MODES } from '../../hooks/useMushafReveal';
+import { reciters } from '../../utils/data';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import { getSimpleErrorMessage, TAJWEED_ERROR_MESSAGES } from '../../utils/tajweedErrors';
 import { WS_BASE, MUAALEM_BASE } from '../../utils/apiConfig';
+import AuthGuard from '../../components/AuthGuard';
 
 // Use direct connection if on localhost to bypass Localtunnel warning pages
 const MUAALEM_WS_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -99,6 +100,7 @@ const LiveMoshafView = () => {
         fromVerse,
         toVerse,
         moshafSettings,
+        selectedReciter,
         setLastSessionMetrics,
         setCurrentSessionId,
         fetchSessionAnalytics,
@@ -148,11 +150,10 @@ const LiveMoshafView = () => {
     // Get surah name
     const surahName = selectedSurah ? surahs.find(s => s.id == selectedSurah)?.name : '';
 
-    // ── Aya audio playback (Husary) ───────────────────────────────────────
+    // ── Aya audio playback ───────────────────────────────────────
     const [playingAya, setPlayingAya] = useState(null);
     const ayaAudioRef = useRef(null);
 
-    const HUSARY_SUBFOLDER = 'Husary_128kbps';
     const pad = (n) => String(n).padStart(3, '0');
 
     const playAya = useCallback((ayaNum) => {
@@ -165,7 +166,9 @@ const LiveMoshafView = () => {
             setPlayingAya(null);
             return;
         }
-        const url = `https://everyayah.com/data/${HUSARY_SUBFOLDER}/${pad(selectedSurah)}${pad(ayaNum)}.mp3`;
+        
+        const reciter = reciters.find(r => r.id == selectedReciter) || reciters[0];
+        const url = `https://everyayah.com/data/${reciter.subfolder}/${pad(selectedSurah)}${pad(ayaNum)}.mp3`;
         const audio = new Audio(url);
         audio.onended = () => setPlayingAya(null);
         audio.onerror = () => setPlayingAya(null);
@@ -312,17 +315,9 @@ const LiveMoshafView = () => {
                                         ayahNumber,
                                         charIndex: displayIndex,
                                         lastCharIndex: displayIndex,
-                                        ayahText: latest.displayUthmani || latest.uthmaniRef
+                                        ayahText: latest.displayUthmani || latest.uthmaniRef,
+                                        rule_name_ar: char.tooltip || char.error_type
                                     };
-                                }
-
-                                // Update global live mistake stats locally (count only once per group or per char? Count per char is fine for stats, but let's count per word/group to be fair)
-                                if (activeMistake.charIndex === displayIndex) {
-                                    useAppStore.getState().updateLiveMistake(char.error_type, {
-                                        surahNumber: parseInt(useAppStore.getState().selectedSurah),
-                                        ayahNumber,
-                                        charIndex: displayIndex,
-                                    });
                                 }
                             } else {
                                 if (activeMistake) {
@@ -338,13 +333,11 @@ const LiveMoshafView = () => {
                     }
                 }
 
-                // Update UI state and save to DB
+                // Update UI state
                 useAppStore.getState().setSessionMistakes(finalMistakes);
                 const saveSessionMistakes = useAppStore.getState().saveSessionMistakes;
-                if (finalMistakes.length > 0 && saveSessionMistakes) {
+                if (saveSessionMistakes) {
                     saveSessionMistakes(finalMistakes);
-                } else {
-                    useAppStore.getState().fetchUserProgress();
                 }
 
                 if (data.metrics) setMetrics(data.metrics);
@@ -363,24 +356,33 @@ const LiveMoshafView = () => {
                 }
                 hasLoggedCurrentSessionRef.current = true;
 
-                useAppStore.getState().logSessionActivity({
-                    type: 'recitation',
+                // Calculate a mock score for now based on mistakes ratio
+                const totalChars = data.structured_chars?.chars?.length || 1;
+                const errorCharsCount = data.structured_chars?.chars?.filter(c => c.error)?.length || 0;
+                const score = Math.max(0, Math.round(((totalChars - errorCharsCount) / totalChars) * 100));
+
+                const appStore = useAppStore.getState();
+                
+                // 1. Save Session to Supabase
+                appStore.saveRecitationSession({
                     surah_number: parseInt(latest.selectedSurah),
-                    surah_name: latest.surahName,
                     from_ayah: parseInt(latest.fromVerse),
                     to_ayah: parseInt(latest.toVerse),
                     duration_seconds: duration,
-                    mistakes_count: finalMistakes.length,
-                    mistake_details: finalMistakes.map(m => ({
-                        error_type: m.name,
-                        surah_number: m.surahNumber,
-                        ayah_number: m.ayahNumber,
-                        ayah_text: m.ayahText,
-                        char_index: m.charIndex,
-                        tooltip: m.tooltip,
-                        rule_name_ar: m.rule_name_ar,
-                        lastCharIndex: m.lastCharIndex
-                    })),
+                    total_mistakes: finalMistakes.length,
+                    score: score
+                }).then(sessionId => {
+                    // 2. Process mistakes against Supabase
+                    if (data.structured_chars && data.structured_chars.chars) {
+                        appStore.processLiveMistakes(
+                            sessionId,
+                            data.structured_chars.chars,
+                            getAyahFromLatestChars,
+                            parseInt(latest.selectedSurah),
+                            parseInt(latest.fromVerse),
+                            parseInt(latest.toVerse)
+                        );
+                    }
                 });
             } else if (data.type === 'auto_stop') {
                 handleStop();
