@@ -593,8 +593,7 @@ textarea:focus-visible,
   }
 
   .main-content {
-    /* extra bottom padding so content clears the fixed bottom tab bar */
-    padding: calc(60px + 16px) 14px calc(84px + env(safe-area-inset-bottom));
+    padding: calc(60px + 16px) 14px calc(20px + env(safe-area-inset-bottom));
     max-width: 100%;
   }
 

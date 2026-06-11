@@ -10,7 +10,6 @@ import SplashScreen from './SplashScreen';
 import Toast from './Toast';
 import Footer from './Footer';
 import Navbar from './Navbar';
-import BottomNav from './BottomNav';
 import MistakesModal from './MistakesModal';
 import VoiceAssistant from './VoiceAssistant';
 
@@ -29,9 +28,6 @@ export default function AppLayoutWrapper({ children }) {
 
     const pathname = usePathname();
     const isAdminPath = pathname?.startsWith('/admin');
-    // The bottom tab bar is for normal browsing — hide it on the admin console and
-    // on the fullscreen recording screen.
-    const hideBottomNav = isAdminPath || pathname?.startsWith('/live-moshaf');
 
     useEffect(() => {
         // Initialize Supabase Auth Listener
@@ -100,7 +96,6 @@ export default function AppLayoutWrapper({ children }) {
                 </div>
             </main>
             {!isAdminPath && <Footer />}
-            {!hideBottomNav && <BottomNav />}
         </div>
         </MotionConfig>
     );
