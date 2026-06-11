@@ -346,7 +346,6 @@ export default function PracticalTestPage({ params }) {
             
             if (newFailCount >= 2) {
                 setFeedbackMsg(`للأسف لم تطبق حكم "${formatRuleName(test.target_rule)}" بشكل صحيح في كلمة "${test.target_word}". استمع لأداء الشيخ وحاول مجدداً.`);
-                playVerseAudio();
             } else {
                 setFeedbackMsg(`للأسف لم تطبق حكم "${formatRuleName(test.target_rule)}" بشكل صحيح في كلمة "${test.target_word}". حاول مرة أخرى.`);
             }
