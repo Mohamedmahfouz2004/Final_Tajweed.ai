@@ -3,7 +3,7 @@ import { reciters } from '../utils/data';
 import { generateInitialProgress } from '../utils/data';
 import audioService from '../utils/audioService';
 import { SURAH_LIST } from '../utils/surahNames';
-import { API_BASE, fetchJsonSafe } from '../utils/apiConfig';
+import { API_BASE, fetchJsonSafe, explainMistakes } from '../utils/apiConfig';
 import { supabase } from '../utils/supabaseClient';
 import { resolveRule } from '../utils/errorTypeMap';
 
@@ -889,6 +889,100 @@ const useAppStore = create((set, get) => ({
     setSessionMistakes: (val) => set({ sessionMistakes: val }),
     mistakes: [],
     setMistakes: (val) => set({ mistakes: val }),
+
+    // --- Recitation report (post-session: rule explanation + recommended video) ---
+    sessionReport: null,        // { rules: [...], overall_ar } | null
+    isLoadingReport: false,
+    clearSessionReport: () => set({ sessionReport: null }),
+
+    // Look up the lesson/video for each tajweed rule the user got wrong.
+    // Returns a { rule_id: lesson } map. Degrades to {} if the column/table is
+    // missing or Supabase is unreachable (the report just omits the video CTA).
+    fetchRecommendedVideos: async (ruleIds) => {
+        if (!supabase || !ruleIds || ruleIds.length === 0) return {};
+        try {
+            const { data, error } = await supabase
+                .from('lessons')
+                .select('id, title, description, video_url, tajweed_rule')
+                .in('tajweed_rule', ruleIds);
+            if (error) throw error;
+            const map = {};
+            (data || []).forEach((l) => {
+                if (l.tajweed_rule && !map[l.tajweed_rule]) map[l.tajweed_rule] = l;
+            });
+            return map;
+        } catch (e) {
+            console.warn('[report] video lookup failed:', e.message);
+            return {};
+        }
+    },
+
+    // Build the post-session report: ask the backend (LLM + static KB) to explain
+    // each rule, and join the recommended lesson video per rule. Fully resilient —
+    // if the backend is down, falls back to the client-side errorTypeMap text.
+    fetchSessionReport: async () => {
+        const mistakes = get().sessionMistakes || [];
+        if (mistakes.length === 0) {
+            set({ sessionReport: { rules: [], overall_ar: 'أحسنت! لم تُرصد أخطاء في هذه الجلسة.' } });
+            return;
+        }
+        set({ isLoadingReport: true });
+        try {
+            // Canonical grouping (client-side) for the video lookup + offline fallback.
+            const groups = {};
+            mistakes.forEach((m) => {
+                const rule = resolveRule(m.name || m.error_type);
+                const rid = rule.rule_id;
+                if (rid === 'other') return;
+                const g = groups[rid] || (groups[rid] = { rule, count: 0, ayat: [] });
+                g.count += 1;
+                if (m.ayahNumber && !g.ayat.includes(m.ayahNumber)) g.ayat.push(m.ayahNumber);
+            });
+            const ruleIds = Object.keys(groups);
+
+            const payload = mistakes.map((m) => ({
+                error_type: m.name || m.error_type,
+                surah_number: m.surahNumber,
+                ayah_number: m.ayahNumber,
+                ayah_text: m.ayahText,
+                char_index: m.charIndex,
+                tooltip: m.tooltip,
+            }));
+
+            const [report, videoMap] = await Promise.all([
+                explainMistakes(payload),
+                get().fetchRecommendedVideos(ruleIds),
+            ]);
+
+            let rules;
+            if (report && Array.isArray(report.rules) && report.rules.length > 0) {
+                rules = report.rules.map((r) => ({ ...r, lesson: videoMap[r.rule_id] || null }));
+            } else {
+                // Backend unreachable / empty → build from the client-side catalogue.
+                rules = ruleIds.map((rid) => {
+                    const { rule, count, ayat } = groups[rid];
+                    return {
+                        rule_id: rid,
+                        name_ar: rule.name,
+                        category_ar: rule.category,
+                        occurrences: count,
+                        ayat,
+                        explanation_ar: rule.description || '',
+                        how_to_fix_ar: '',
+                        source: 'static',
+                        lesson: videoMap[rid] || null,
+                    };
+                });
+            }
+
+            set({ sessionReport: { rules, overall_ar: report?.overall_ar || null } });
+        } catch (e) {
+            console.warn('[report] build failed:', e.message);
+            set({ sessionReport: null });
+        } finally {
+            set({ isLoadingReport: false });
+        }
+    },
 
     // --- Practice UI State (moved to store for voice control) ---
     practiceViewState: 'selection', // 'selection' | 'practice'

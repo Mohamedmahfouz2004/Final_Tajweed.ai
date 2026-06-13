@@ -13,6 +13,7 @@ import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import { getSimpleErrorMessage, TAJWEED_ERROR_MESSAGES } from '../../utils/tajweedErrors';
 import { WS_BASE, MUAALEM_BASE } from '../../utils/apiConfig';
 import AuthGuard from '../../components/AuthGuard';
+import RecitationReport from '../../components/report/RecitationReport';
 
 // Use direct connection if on localhost to bypass Localtunnel warning pages
 const MUAALEM_WS_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -339,6 +340,8 @@ const LiveMoshafView = () => {
                 if (saveSessionMistakes) {
                     saveSessionMistakes(finalMistakes);
                 }
+                // Build the post-session report (rule explanation + recommended video).
+                useAppStore.getState().fetchSessionReport?.();
 
                 if (data.metrics) setMetrics(data.metrics);
                 if (data.metrics_history && data.metrics_history.length > 0) {
@@ -423,6 +426,7 @@ const LiveMoshafView = () => {
         // Reset session-specific mistake tracking
         setSessionMistakes([]);
         setSelectedError(null);
+        useAppStore.getState().clearSessionReport?.();
         recordingStartedAtRef.current = Date.now();
         hasLoggedCurrentSessionRef.current = false; // Reset on every start
 
@@ -607,6 +611,9 @@ const LiveMoshafView = () => {
                                         </div>
                                     </div>
                                 )}
+
+                                {/* Post-session report: rule explanation + recommended video */}
+                                <RecitationReport />
 
                                 {/* Original Model Output (Debug) */}
                                 {showDebug && liveHtml && (

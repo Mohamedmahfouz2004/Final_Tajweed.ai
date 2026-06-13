@@ -36,6 +36,21 @@ class Settings(BaseSettings):
     MODEL_SERVER_URL: str = "http://localhost:8888"
     MODEL_SERVER_WS: str = "ws://localhost:8888"
 
+    # ── OpenRouter (tajweed explanation LLM) ──
+    # Generates the post-recitation tajweed explanations. Free model by default;
+    # if empty, the explain route degrades gracefully to the static knowledge base.
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+    OPENROUTER_MODEL: str = "google/gemma-4-31b-it:free"
+    # Free models rate-limit (429) and rotate (404) aggressively. The explanation
+    # call tries OPENROUTER_MODEL first, then these in order, before degrading to
+    # the static knowledge base. Comma-separated; all must accept Arabic + JSON.
+    OPENROUTER_FALLBACK_MODELS: str = (
+        "openai/gpt-oss-120b:free,"
+        "nvidia/nemotron-3-super-120b-a12b:free,"
+        "meta-llama/llama-3.3-70b-instruct:free"
+    )
+
     # ── File Uploads ──
     UPLOAD_DIR: str = Field(default_factory=lambda: os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads"))
     MAX_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500MB

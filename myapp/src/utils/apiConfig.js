@@ -66,4 +66,26 @@ async function fetchJsonSafe(url, options = {}, fallback = null) {
     }
 }
 
-export { API_BASE, MUAALEM_BASE, WS_BASE, fetchJsonSafe };
+/**
+ * Ask the FastAPI backend to explain a recitation session's tajweed mistakes.
+ * `mistakes` is the backend-shaped list ({ error_type, surah_number, ayah_number,
+ * ayah_text, char_index, tooltip }). Degrades gracefully: returns an empty report
+ * (so the caller can fall back to the client-side errorTypeMap) if the backend is
+ * unreachable or errors.
+ */
+async function explainMistakes(mistakes) {
+    if (!Array.isArray(mistakes) || mistakes.length === 0) {
+        return { rules: [], overall_ar: null };
+    }
+    return await fetchJsonSafe(
+        `${API_BASE}/api/explain`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mistakes }),
+        },
+        { rules: [], overall_ar: null },
+    );
+}
+
+export { API_BASE, MUAALEM_BASE, WS_BASE, fetchJsonSafe, explainMistakes };

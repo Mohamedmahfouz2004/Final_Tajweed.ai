@@ -79,6 +79,7 @@ from app.routes.lessons import router as lessons_router
 from app.routes.progress import router as progress_router
 from app.routes.admin import router as admin_router
 from app.routes.quran import router as quran_router
+from app.routes.explain import router as explain_router
 from app.ws.stream import router as ws_router
 
 # Auth (login/signup/sessions) is owned by Clerk on the client — no auth router.
@@ -86,6 +87,7 @@ app.include_router(lessons_router)
 app.include_router(progress_router)
 app.include_router(admin_router)
 app.include_router(quran_router)
+app.include_router(explain_router)
 app.include_router(ws_router)
 
 
