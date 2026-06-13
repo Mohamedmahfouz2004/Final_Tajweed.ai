@@ -226,7 +226,7 @@ export default function PracticalQuizPage({ params }) {
     if (loading) {
         return (
             <div className="ui-panel" style={{ textAlign: 'center', padding: '52px 24px' }}>
-                <div style={{ display: 'inline-block', width: 32, height: 32, border: '1px solid var(--sand-400)', borderTopColor: 'var(--brass-500)', animation: 'spin 0.7s linear infinite', marginBottom: 12 }} />
+                <div style={{ display: 'inline-block', width: 32, height: 32, borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--sand-400)', borderTopColor: 'var(--brass-500)', animation: 'spin 0.7s linear infinite', marginBottom: 12 }} />
                 <p style={{ color: 'var(--ink-500)', fontFamily: 'Share Tech Mono, monospace', letterSpacing: '0.18em' }}>LOADING QUIZ ...</p>
                 <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>

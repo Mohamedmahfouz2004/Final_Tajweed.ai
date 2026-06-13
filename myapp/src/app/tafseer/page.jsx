@@ -256,7 +256,7 @@ function TafseerView() {
                         <p style={{ color: 'var(--ink-500)', fontFamily: 'Share Tech Mono, monospace', fontSize: '0.8rem', letterSpacing: '0.18em' }}>LOADING AYAH ...</p>
                     </div>
                 ) : (
-                    <div style={{ textAlign: 'center', lineHeight: 5.4 }}>
+                    <div style={{ textAlign: 'center', lineHeight: 2.4 }}>
                         {selectedSura !== 9 && fromAyah === 1 && (
                             <p className="selectable" style={{ fontFamily: "var(--font-aref-ruqaa), 'Aref Ruqaa', Amiri, serif", fontSize: '1.7rem', color: 'var(--brass-700)', marginBottom: 18, fontWeight: 700 }}>
                                 بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ

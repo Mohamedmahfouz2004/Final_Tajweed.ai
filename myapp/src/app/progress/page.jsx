@@ -301,7 +301,7 @@ const ProgressView = () => {
 
                     {!dailyPlaylist ? (
                         <div className="ui-tile" style={{ minHeight: 180, alignItems: 'center', justifyContent: 'center', cursor: 'default' }}>
-                            <div style={{ width: 44, height: 44, border: '3px solid var(--emerald-700)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                            <div style={{ width: 44, height: 44, borderWidth: 3, borderStyle: 'solid', borderColor: 'var(--emerald-700)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
                             <p style={{ color: 'var(--ink-600)', fontFamily: 'var(--font-ibm)', fontWeight: 600 }}>جاري تحليل مستواك وبناء الخطة...</p>
                         </div>
                     ) : !hasAnyTask ? (

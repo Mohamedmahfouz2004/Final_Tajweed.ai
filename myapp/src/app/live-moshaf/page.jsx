@@ -20,6 +20,26 @@ const MUAALEM_WS_URL = typeof window !== 'undefined' && (window.location.hostnam
     ? 'ws://127.0.0.1:8888/ws/stream'
     : `${WS_BASE}/ws/stream`;
 
+// The model server expects 16kHz mono float32. iOS Safari ignores a requested
+// AudioContext sampleRate and runs at the hardware rate (usually 48kHz), so we
+// must resample on the client based on the *actual* context rate. Linear
+// interpolation is enough for speech. Always returns a fresh Float32Array.
+function downsampleTo16k(input, inputRate, targetRate = 16000) {
+    if (!input || input.length === 0) return new Float32Array(0);
+    if (inputRate <= targetRate) return Float32Array.from(input); // already ≤16kHz: send a copy as-is
+    const ratio = inputRate / targetRate;
+    const outLen = Math.round(input.length / ratio);
+    const out = new Float32Array(outLen);
+    for (let i = 0; i < outLen; i++) {
+        const pos = i * ratio;
+        const i0 = Math.floor(pos);
+        const i1 = Math.min(i0 + 1, input.length - 1);
+        const frac = pos - i0;
+        out[i] = input[i0] * (1 - frac) + input[i1] * frac;
+    }
+    return out;
+}
+
 /**
  * Merge annotation chars (from the plain uthmani used for phonetization)
  * into the display uthmani (which includes ayah markers like ۝١).
@@ -440,23 +460,36 @@ const LiveMoshafView = () => {
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+                audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
             });
             streamRef.current = stream;
 
-            const audioCtx = new AudioContext({ sampleRate: 16000 });
+            // iOS Safari: use the webkit fallback, and the requested sampleRate is
+            // ignored (context runs at the hardware rate, usually 48kHz).
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            const audioCtx = new Ctx({ sampleRate: 16000 });
+            // iOS starts the context suspended — must resume within the user gesture.
+            if (audioCtx.state === 'suspended') {
+                try { await audioCtx.resume(); } catch { }
+            }
+            const inputRate = audioCtx.sampleRate; // 16000 on desktop, ~48000 on iOS
             const source = audioCtx.createMediaStreamSource(stream);
             const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+            // Silent monitor: keeps the ScriptProcessor firing without playing the
+            // mic back through the speaker (avoids feedback, especially on iPhone).
+            const mute = audioCtx.createGain();
+            mute.gain.value = 0;
 
             processor.onaudioprocess = (e) => {
                 if (activeWs?.readyState !== WebSocket.OPEN) return;
                 const samples = e.inputBuffer.getChannelData(0);
-                const buffer = new Float32Array(samples).buffer;
-                activeWs.send(buffer);
+                const out = downsampleTo16k(samples, inputRate, 16000);
+                if (out.length) activeWs.send(out.buffer);
             };
 
             source.connect(processor);
-            processor.connect(audioCtx.destination);
+            processor.connect(mute);
+            mute.connect(audioCtx.destination);
 
             audioCtxRef.current = audioCtx;
             sourceRef.current = source;
