@@ -33,11 +33,28 @@ import diff_match_patch as dmp_module
 from analytics_db import SessionLogger, get_session_chunks, store_report, get_report
 from analytics_engine import AnalyticsEngine
 
-# Tajweed explanation (post-recitation report) — loads OPENROUTER_* from .env
-from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+# Tajweed explanation (post-recitation report) — OPTIONAL feature.
+# Everything here is guarded so a missing dependency or file can never stop the
+# core model server (recitation) from starting. Loads OPENROUTER_* from .env.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+except Exception as _dotenv_err:  # python-dotenv not installed, etc.
+    logging.getLogger("muaalem_server").warning(
+        "python-dotenv not loaded (%s); reading OPENROUTER_* from the shell environment.",
+        _dotenv_err,
+    )
+
 from pydantic import BaseModel
-import explain_tajweed
+
+try:
+    import explain_tajweed
+    _EXPLAIN_OK = True
+    _EXPLAIN_ERR = None
+except Exception as _explain_err:  # explain_tajweed.py missing / import error
+    explain_tajweed = None
+    _EXPLAIN_OK = False
+    _EXPLAIN_ERR = _explain_err
 
 # ── Logging ──────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -353,12 +370,26 @@ class _ExplainRequest(BaseModel):
     mistakes: list[_ExplainMistake] = []
 
 
-@app.post("/api/explain")
-async def explain(body: _ExplainRequest):
-    """Explain a session's tajweed mistakes + (frontend joins) recommend videos.
-    LLM-personalised with a static knowledge-base fallback — never hard-fails."""
-    mistakes = [m.model_dump() for m in body.mistakes]
-    return await explain_tajweed.build_explanation(mistakes)
+if _EXPLAIN_OK:
+    @app.post("/api/explain")
+    async def explain(body: _ExplainRequest):
+        """Explain a session's tajweed mistakes + (frontend joins) recommend videos.
+        LLM-personalised with a static knowledge-base fallback — never hard-fails."""
+        mistakes = [m.model_dump() for m in body.mistakes]
+        return await explain_tajweed.build_explanation(mistakes)
+
+    _has_key = bool(os.environ.get("OPENROUTER_API_KEY", "").strip())
+    _model = os.environ.get("OPENROUTER_MODEL", "google/gemma-4-31b-it:free")
+    logging.getLogger("muaalem_server").info(
+        "✅ Explain endpoint enabled at POST /api/explain (%s)",
+        f"AI model={_model}" if _has_key else "static fallback — set OPENROUTER_API_KEY in muaalem/.env for AI",
+    )
+else:
+    logging.getLogger("muaalem_server").warning(
+        "⚠️ Explain endpoint DISABLED: could not import explain_tajweed (%s). "
+        "Recitation is unaffected; POST /api/explain will return 404 until this is fixed.",
+        _EXPLAIN_ERR,
+    )
 
 
 # ══════════════════════════════════════════════════════════════════════════
