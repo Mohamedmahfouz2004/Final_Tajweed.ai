@@ -67,18 +67,23 @@ async function fetchJsonSafe(url, options = {}, fallback = null) {
 }
 
 /**
- * Ask the FastAPI backend to explain a recitation session's tajweed mistakes.
- * `mistakes` is the backend-shaped list ({ error_type, surah_number, ayah_number,
- * ayah_text, char_index, tooltip }). Degrades gracefully: returns an empty report
- * (so the caller can fall back to the client-side errorTypeMap) if the backend is
- * unreachable or errors.
+ * Ask the model server to explain a recitation session's tajweed mistakes.
+ * Served by /api/explain on the Muaalem server (MUAALEM_BASE) so it rides the same
+ * tunnel as the live recitation — no separate backend needed. Override the target
+ * with NEXT_PUBLIC_EXPLAIN_URL if you host /api/explain elsewhere (e.g. the FastAPI
+ * backend at API_BASE). `mistakes` is the backend-shaped list ({ error_type,
+ * surah_number, ayah_number, ayah_text, char_index, tooltip }). Degrades
+ * gracefully: returns an empty report (caller falls back to the client-side
+ * errorTypeMap) if the server is unreachable or errors.
  */
+const EXPLAIN_BASE = process.env.NEXT_PUBLIC_EXPLAIN_URL || MUAALEM_BASE;
+
 async function explainMistakes(mistakes) {
     if (!Array.isArray(mistakes) || mistakes.length === 0) {
         return { rules: [], overall_ar: null };
     }
     return await fetchJsonSafe(
-        `${API_BASE}/api/explain`,
+        `${EXPLAIN_BASE}/api/explain`,
         {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

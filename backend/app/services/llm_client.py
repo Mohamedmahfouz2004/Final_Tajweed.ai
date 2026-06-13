@@ -14,6 +14,7 @@ static knowledge base" — the explanation feature must never hard-fail a reques
 import json
 import logging
 import re
+import time
 from typing import Any
 
 import httpx
@@ -21,6 +22,11 @@ import httpx
 from app.config import get_settings
 
 logger = logging.getLogger("tajweed.llm_client")
+
+# Per-call read timeout and overall wall-clock budget (seconds). Free models can
+# be slow, so cap total time hard — callers fall back to the static KB if blown.
+_PER_CALL_TIMEOUT = 18.0
+_TOTAL_BUDGET = 35.0
 
 _FENCE_RE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)
 
@@ -93,14 +99,14 @@ async def chat_json(
     user: str,
     *,
     temperature: float = 0.3,
-    max_tokens: int = 1200,
-    timeout: float = 35.0,
+    max_tokens: int = 700,
 ) -> dict[str, Any] | None:
     """Ask OpenRouter for a JSON object, trying the configured model then the
-    fallback chain (free models 404/429 often).
+    fallback chain (free models 404/429 often), under a hard time budget.
 
-    Returns the parsed dict, or None if the call is disabled (no key) or every
-    model fails — callers must treat None as "use the static knowledge base".
+    Returns the parsed dict, or None if the call is disabled (no key), the time
+    budget is exhausted, or every model fails — callers must treat None as "use
+    the static knowledge base".
     """
     settings = get_settings()
     if not settings.OPENROUTER_API_KEY:
@@ -120,8 +126,13 @@ async def chat_json(
         {"role": "user", "content": user},
     ]
 
+    deadline = time.monotonic() + _TOTAL_BUDGET
     async with httpx.AsyncClient() as client:
         for model in _model_chain(settings):
+            remaining = deadline - time.monotonic()
+            if remaining <= 1:
+                logger.warning("OpenRouter time budget exhausted — static fallback.")
+                break
             body = {
                 "model": model,
                 "messages": messages,
@@ -129,7 +140,9 @@ async def chat_json(
                 "max_tokens": max_tokens,
                 "response_format": {"type": "json_object"},
             }
-            parsed, retryable = await _try_model(client, url, base_headers, body, timeout)
+            parsed, retryable = await _try_model(
+                client, url, base_headers, body, min(_PER_CALL_TIMEOUT, remaining)
+            )
             if parsed is not None:
                 logger.info("OpenRouter explanation served by %s", model)
                 return parsed

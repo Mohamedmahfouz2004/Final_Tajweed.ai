@@ -46,8 +46,7 @@ class Settings(BaseSettings):
     # call tries OPENROUTER_MODEL first, then these in order, before degrading to
     # the static knowledge base. Comma-separated; all must accept Arabic + JSON.
     OPENROUTER_FALLBACK_MODELS: str = (
-        "openai/gpt-oss-120b:free,"
-        "nvidia/nemotron-3-super-120b-a12b:free,"
+        "openai/gpt-oss-20b:free,"
         "meta-llama/llama-3.3-70b-instruct:free"
     )
 

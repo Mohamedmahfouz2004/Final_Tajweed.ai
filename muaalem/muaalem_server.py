@@ -33,6 +33,12 @@ import diff_match_patch as dmp_module
 from analytics_db import SessionLogger, get_session_chunks, store_report, get_report
 from analytics_engine import AnalyticsEngine
 
+# Tajweed explanation (post-recitation report) — loads OPENROUTER_* from .env
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+from pydantic import BaseModel
+import explain_tajweed
+
 # ── Logging ──────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -329,6 +335,30 @@ def get_uthmani(surah: int = 1, from_aya: int = 1, to_aya: int = 1):
 @app.get("/api/health")
 def health():
     return {"status": "ok", "device": device, "model": model_id}
+
+
+# ── Tajweed explanation (post-recitation report) ───────────────────────────
+class _ExplainMistake(BaseModel):
+    error_type: Optional[str] = None
+    name: Optional[str] = None
+    surah_number: Optional[int] = None
+    ayah_number: Optional[int] = None
+    ayah_text: Optional[str] = None
+    char_index: Optional[int] = None
+    tooltip: Optional[str] = None
+    severity: Optional[str] = None
+
+
+class _ExplainRequest(BaseModel):
+    mistakes: list[_ExplainMistake] = []
+
+
+@app.post("/api/explain")
+async def explain(body: _ExplainRequest):
+    """Explain a session's tajweed mistakes + (frontend joins) recommend videos.
+    LLM-personalised with a static knowledge-base fallback — never hard-fails."""
+    mistakes = [m.model_dump() for m in body.mistakes]
+    return await explain_tajweed.build_explanation(mistakes)
 
 
 # ══════════════════════════════════════════════════════════════════════════

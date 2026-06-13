@@ -1,16 +1,23 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { BookOpen, Mic, Lightbulb, Wrench, Sparkles } from 'lucide-react';
+import { BookOpen, Mic, Lightbulb, Wrench, Sparkles, Volume2, Square } from 'lucide-react';
 import useAppStore from '../../store/useAppStore';
 import { resolveRule } from '../../utils/errorTypeMap';
+import { reciters } from '../../utils/data';
+import audioService from '../../utils/audioService';
+
+const pad = (n) => String(n).padStart(3, '0');
+const FULL_KEY = '__full__';
 
 /**
  * Post-recitation report card. For every distinct tajweed rule the user got
  * wrong it shows a (personalised, LLM-generated or static-fallback) explanation,
- * how to fix it, and a CTA to the recommended learning video lesson.
+ * how to fix it, a CTA to the recommended learning video lesson, and a "listen
+ * again" button that plays the correct reference recitation — per rule (the
+ * mistake's ayah(s)) and for the whole recited passage.
  *
  * Reads `sessionReport` + `isLoadingReport` built by fetchSessionReport() in the
  * store. Renders nothing until a report exists.
@@ -19,6 +26,61 @@ const RecitationReport = () => {
     const router = useRouter();
     const report = useAppStore((s) => s.sessionReport);
     const isLoading = useAppStore((s) => s.isLoadingReport);
+    const selectedSurah = useAppStore((s) => s.selectedSurah);
+    const selectedReciter = useAppStore((s) => s.selectedReciter);
+    const fromVerse = useAppStore((s) => s.fromVerse);
+    const toVerse = useAppStore((s) => s.toVerse);
+
+    // Which audio set is currently playing: null | rule_id | FULL_KEY.
+    const [playingKey, setPlayingKey] = useState(null);
+    // Cancel token so stopping mid-sequence doesn't auto-advance to the next ayah.
+    const seqRef = useRef(null);
+
+    // Stop any reference audio when the component unmounts.
+    useEffect(() => () => { audioService.stop(); }, []);
+
+    const stopPlayback = () => {
+        if (seqRef.current) seqRef.current.cancelled = true;
+        audioService.stop();
+        setPlayingKey(null);
+    };
+
+    // Play a list of ayah numbers (in the selected reciter) one after another.
+    // Same everyayah.com pattern as playAya/playVerse; audioService.play() stops
+    // any prior audio so only one recitation plays at a time.
+    const playAyat = (key, ayatList) => {
+        if (!selectedSurah || !Array.isArray(ayatList) || ayatList.length === 0) return;
+        if (playingKey === key) { stopPlayback(); return; }
+        audioService.stop();
+
+        const reciter = reciters.find((r) => r.id == selectedReciter) || reciters[0];
+        const urls = ayatList.map(
+            (a) => `https://everyayah.com/data/${reciter.subfolder}/${pad(selectedSurah)}${pad(a)}.mp3`,
+        );
+        const token = { cancelled: false };
+        seqRef.current = token;
+        setPlayingKey(key);
+
+        let i = 0;
+        const next = () => {
+            if (token.cancelled) return;
+            if (i >= urls.length) { setPlayingKey(null); return; }
+            const url = urls[i++];
+            audioService.play(url, next).catch(() => {
+                token.cancelled = true;
+                setPlayingKey(null);
+            });
+        };
+        next();
+    };
+
+    // Full recited passage (from_ayah → to_ayah, inclusive).
+    const fromN = parseInt(fromVerse, 10);
+    const toN = parseInt(toVerse, 10);
+    const fullRange = (Number.isFinite(fromN) && Number.isFinite(toN) && toN >= fromN)
+        ? Array.from({ length: toN - fromN + 1 }, (_, k) => fromN + k)
+        : [];
+    const canPlayFull = !!selectedSurah && fullRange.length > 0;
 
     if (isLoading) {
         return (
@@ -60,14 +122,32 @@ const RecitationReport = () => {
             className="mt-4 text-right shrink-0"
         >
             {/* Header */}
-            <div className="mb-3 flex items-center justify-end gap-3">
-                <div>
-                    <h3 className="font-amiri text-2xl font-bold text-[var(--ink-900,#2C1810)]">ملخص التلاوة</h3>
-                    {report.overall_ar && (
-                        <p className="text-sm text-[var(--ink-700)]">{report.overall_ar}</p>
-                    )}
+            <div className="mb-3 flex items-center justify-between gap-3">
+                {/* Listen to the whole recited passage */}
+                {canPlayFull ? (
+                    <button
+                        type="button"
+                        onClick={() => playAyat(FULL_KEY, fullRange)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition"
+                        style={playingKey === FULL_KEY
+                            ? { background: 'var(--emerald-600)', color: '#fff', borderColor: 'var(--emerald-600)' }
+                            : { borderColor: 'var(--sand-400)', color: 'var(--ink-700)' }}
+                    >
+                        {playingKey === FULL_KEY
+                            ? (<><Square size={13} /> إيقاف</>)
+                            : (<><Volume2 size={13} /> استمع للمقطع كاملاً</>)}
+                    </button>
+                ) : <span />}
+
+                <div className="flex items-center gap-3">
+                    <div>
+                        <h3 className="font-amiri text-2xl font-bold text-[var(--ink-900,#2C1810)]">ملخص التلاوة</h3>
+                        {report.overall_ar && (
+                            <p className="text-sm text-[var(--ink-700)]">{report.overall_ar}</p>
+                        )}
+                    </div>
+                    <Lightbulb size={22} className="text-[var(--brass-500)]" />
                 </div>
-                <Lightbulb size={22} className="text-[var(--brass-500)]" />
             </div>
 
             <div className="flex flex-col gap-3">
@@ -75,6 +155,8 @@ const RecitationReport = () => {
                     const meta = resolveRule(r.rule_id);
                     const color = meta.color || 'var(--ink-700)';
                     const icon = meta.icon || '◇';
+                    const hasAyat = Array.isArray(r.ayat) && r.ayat.length > 0;
+                    const isPlaying = playingKey === r.rule_id;
                     return (
                         <motion.div
                             key={r.rule_id || i}
@@ -94,7 +176,7 @@ const RecitationReport = () => {
                                             {r.occurrences} مرة
                                         </span>
                                     )}
-                                    {Array.isArray(r.ayat) && r.ayat.length > 0 && (
+                                    {hasAyat && (
                                         <span className="text-xs text-[var(--ink-500)]">
                                             الآيات: {r.ayat.join('، ')}
                                         </span>
@@ -138,6 +220,20 @@ const RecitationReport = () => {
 
                             {/* CTAs */}
                             <div className="mt-3 flex flex-wrap justify-end gap-2">
+                                {selectedSurah && hasAyat && (
+                                    <button
+                                        type="button"
+                                        onClick={() => playAyat(r.rule_id, r.ayat)}
+                                        className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition"
+                                        style={isPlaying
+                                            ? { background: color, color: '#fff', borderColor: color }
+                                            : { borderColor: 'var(--sand-400)', color: 'var(--ink-700)' }}
+                                    >
+                                        {isPlaying
+                                            ? (<><Square size={13} /> إيقاف</>)
+                                            : (<><Volume2 size={13} /> استمع للموضع</>)}
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={() => router.push(`/practical-quiz/${r.rule_id}`)}
