@@ -41,13 +41,16 @@ class Settings(BaseSettings):
     # if empty, the explain route degrades gracefully to the static knowledge base.
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
-    OPENROUTER_MODEL: str = "google/gemma-4-31b-it:free"
+    OPENROUTER_MODEL: str = "openai/gpt-oss-120b:free"
     # Free models rate-limit (429) and rotate (404) aggressively. The explanation
     # call tries OPENROUTER_MODEL first, then these in order, before degrading to
     # the static knowledge base. Comma-separated; all must accept Arabic + JSON.
     OPENROUTER_FALLBACK_MODELS: str = (
-        "openai/gpt-oss-20b:free,"
-        "meta-llama/llama-3.3-70b-instruct:free"
+        "nvidia/nemotron-3-super-120b-a12b:free,"
+        "meta-llama/llama-3.3-70b-instruct:free,"
+        "qwen/qwen3-next-80b-a3b-instruct:free,"
+        "google/gemma-4-31b-it:free,"
+        "openai/gpt-oss-20b:free"
     )
 
     # ── File Uploads ──

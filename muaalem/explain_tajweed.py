@@ -18,6 +18,7 @@ Config via env (loaded by muaalem_server with python-dotenv):
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -140,11 +141,13 @@ def _extract_json(content: str):
 
 
 def _model_chain() -> list[str]:
-    primary = os.environ.get("OPENROUTER_MODEL", "google/gemma-4-31b-it:free").strip()
+    primary = os.environ.get("OPENROUTER_MODEL", "openai/gpt-oss-120b:free").strip()
     chain = [primary] if primary else []
     fallbacks = os.environ.get(
         "OPENROUTER_FALLBACK_MODELS",
-        "openai/gpt-oss-20b:free,meta-llama/llama-3.3-70b-instruct:free",
+        "nvidia/nemotron-3-super-120b-a12b:free,meta-llama/llama-3.3-70b-instruct:free,"
+        "qwen/qwen3-next-80b-a3b-instruct:free,google/gemma-4-31b-it:free,"
+        "openai/gpt-oss-20b:free",
     )
     for m in fallbacks.split(","):
         m = m.strip()
@@ -177,10 +180,17 @@ async def _chat_json(system: str, user: str):
                 logger.warning("OpenRouter time budget exhausted — static fallback.")
                 break
             body = {"model": model, "messages": messages, "temperature": 0.3,
-                    "max_tokens": 700, "response_format": {"type": "json_object"}}
+                    "max_tokens": 1100, "response_format": {"type": "json_object"}}
+            call_timeout = min(_PER_CALL_TIMEOUT, remaining)
             try:
-                resp = await client.post(url, headers=headers, json=body,
-                                         timeout=min(_PER_CALL_TIMEOUT, remaining))
+                # asyncio.wait_for is a HARD wall-clock cap. httpx's own timeout is
+                # a per-socket-read timeout, which OpenRouter's free tier defeats by
+                # trickling keep-alive bytes while a model is queued — that can hang a
+                # single call for minutes and blow the whole budget. This bounds it.
+                resp = await asyncio.wait_for(
+                    client.post(url, headers=headers, json=body, timeout=call_timeout),
+                    timeout=call_timeout,
+                )
                 resp.raise_for_status()
                 data = resp.json()
             except httpx.HTTPStatusError as e:
@@ -267,7 +277,10 @@ async def build_explanation(mistakes: list[dict]) -> dict:
         overall_ar = ai.get("overall_ar")
         for item in ai.get("rules", []) or []:
             if isinstance(item, dict) and item.get("rule_id"):
-                ai_by_rule[str(item["rule_id"]).strip().lower()] = item
+                # Normalize through the alias map so a model that echoes e.g.
+                # "ghunnah" / "tarqeeq" still matches the canonical grouped rid.
+                key = normalize_rule_id(item["rule_id"]) or str(item["rule_id"]).strip().lower()
+                ai_by_rule[key] = item
 
     rules_out = []
     for rid, b in grouped.items():

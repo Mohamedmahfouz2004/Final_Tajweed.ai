@@ -167,7 +167,7 @@ Each service reads its secrets from a local environment file that is **git-ignor
 | Variable | Required | Description |
 | --- | --- | --- |
 | `OPENROUTER_API_KEY` | No | Enables AI explanations. If empty, the static knowledge base is used. |
-| `OPENROUTER_MODEL` | No | Primary free model slug (default `google/gemma-4-31b-it:free`). |
+| `OPENROUTER_MODEL` | No | Primary free model slug (default `openai/gpt-oss-120b:free`). |
 | `OPENROUTER_FALLBACK_MODELS` | No | Comma-separated fallback models tried on 404/429. |
 | `OPENROUTER_TIMEOUT` / `OPENROUTER_TOTAL_BUDGET` | No | Per-call and total time budgets (seconds) so a slow free model never hangs the report. |
 

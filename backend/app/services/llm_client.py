@@ -11,6 +11,7 @@ network error, non-JSON content). Callers must treat None as "fall back to the
 static knowledge base" — the explanation feature must never hard-fail a request.
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -66,9 +67,19 @@ def _model_chain(settings) -> list[str]:
 async def _try_model(client: httpx.AsyncClient, url: str, headers: dict, body: dict, timeout: float):
     """Returns (parsed_dict, retryable). retryable=True means try the next model."""
     try:
-        resp = await client.post(url, headers=headers, json=body, timeout=timeout)
+        # asyncio.wait_for is a HARD wall-clock cap. httpx's own timeout is a
+        # per-socket-read timeout, which OpenRouter's free tier defeats by trickling
+        # keep-alive bytes while a model is queued — that can hang a single call for
+        # minutes and blow the whole budget. This bounds each attempt.
+        resp = await asyncio.wait_for(
+            client.post(url, headers=headers, json=body, timeout=timeout),
+            timeout=timeout,
+        )
         resp.raise_for_status()
         data = resp.json()
+    except (asyncio.TimeoutError, httpx.TimeoutException) as e:
+        logger.warning("OpenRouter timed out (%s): %s", body["model"], e)
+        return None, True  # try the next model
     except httpx.HTTPStatusError as e:
         code = e.response.status_code
         logger.warning("OpenRouter HTTP %s (%s): %s", code, body["model"], e.response.text[:200])
@@ -99,7 +110,7 @@ async def chat_json(
     user: str,
     *,
     temperature: float = 0.3,
-    max_tokens: int = 700,
+    max_tokens: int = 1100,
 ) -> dict[str, Any] | None:
     """Ask OpenRouter for a JSON object, trying the configured model then the
     fallback chain (free models 404/429 often), under a hard time budget.

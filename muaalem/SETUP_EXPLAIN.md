@@ -25,7 +25,7 @@ The post-recitation report calls `POST /api/explain` on **this model server** (p
    ```
    On startup the console must print:
    ```
-   ✅ Explain endpoint enabled at POST /api/explain (AI model=google/gemma-4-31b-it:free)
+   ✅ Explain endpoint enabled at POST /api/explain (AI model=openai/gpt-oss-120b:free)
    ```
    If it prints `static fallback — set OPENROUTER_API_KEY ...`, the route works but your `.env` key is missing/empty.
    If it prints `⚠️ Explain endpoint DISABLED`, `explain_tajweed.py` is missing from your copy — update the code.

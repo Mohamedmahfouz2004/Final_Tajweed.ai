@@ -23,7 +23,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.services import llm_client
-from app.services.tajweed_kb import RULE_KB, resolve_rule
+from app.services.tajweed_kb import RULE_KB, normalize_rule_id, resolve_rule
 
 logger = logging.getLogger("tajweed.explain")
 
@@ -135,7 +135,10 @@ async def explain_mistakes(body: ExplainRequest):
         overall_ar = ai.get("overall_ar")
         for item in ai.get("rules", []) or []:
             if isinstance(item, dict) and item.get("rule_id"):
-                ai_by_rule[str(item["rule_id"]).strip().lower()] = item
+                # Normalize through the alias map so a model that echoes e.g.
+                # "ghunnah" / "tarqeeq" still matches the canonical grouped rid.
+                key = normalize_rule_id(item["rule_id"]) or str(item["rule_id"]).strip().lower()
+                ai_by_rule[key] = item
 
     rules_out = []
     for rid, b in grouped.items():

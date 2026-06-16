@@ -379,7 +379,7 @@ if _EXPLAIN_OK:
         return await explain_tajweed.build_explanation(mistakes)
 
     _has_key = bool(os.environ.get("OPENROUTER_API_KEY", "").strip())
-    _model = os.environ.get("OPENROUTER_MODEL", "google/gemma-4-31b-it:free")
+    _model = os.environ.get("OPENROUTER_MODEL", "openai/gpt-oss-120b:free")
     logging.getLogger("muaalem_server").info(
         "✅ Explain endpoint enabled at POST /api/explain (%s)",
         f"AI model={_model}" if _has_key else "static fallback — set OPENROUTER_API_KEY in muaalem/.env for AI",
